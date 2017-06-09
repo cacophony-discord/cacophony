@@ -76,21 +76,32 @@ class CacophonyApplication(Application, CacophonyDispatcher):
                 self.warning("Could not find brain for server '%s'!",
                              server)
 
-    @CacophonyDispatcher.register('!help')
+            # Load extra-commands if any
+            extra_commands = discord_servers[server.id].get('commands', [])
+            if len(extra_commands) > 0:
+                self._load_extra_commands(server.id, extra_commands)
+
+    def _load_extra_commands(server_id, extra_commands):
+        """TODO: load extra commands."""
+        pass
+
+    @CacophonyDispatcher.register(('!help', '*'))
     async def on_help(self, message, *args):
         """Display the list of available commands by private message."""
         output = "**Available commands:**\n\n"
-        for command, cb in self.dispatcher.items():
+        for ((command, server), cb) in self.dispatcher.items():
+            if server != '*' and message.server.id != server:
+                continue
             output += "**{}**: {}\n".format(command, cb.__doc__)
         await self.discord_client.send_message(message.author, output)
 
-    @CacophonyDispatcher.register('!ping')
+    @CacophonyDispatcher.register(('!ping', '*'))
     async def on_ping(self, message, *args):
         """Ping the bot that will answer with a 'Pong!' message."""
         await self.discord_client.send_message(message.channel,
                                                '_Pong!_')
 
-    @CacophonyDispatcher.register('!anim')
+    @CacophonyDispatcher.register(('!anim', '*'))
     async def on_anim(self, message, *args):
         """Reply with a random gif given the provided keyword."""
         tag = urllib.parse.quote_plus(' '.join(args))
@@ -138,8 +149,16 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         if message_content.startswith('!') and \
                 message.channel.name in bot.channels:
             command, *args = message.content.split(' ')
-            if command in self.__callbacks__:
-                await self.dispatch(command)(self, message, *args)
+            if (command, '*') in self.__callbacks__:
+                await self.dispatch((command, '*'))(self, message, *args)
+            elif (command, server_id) in self.__callbacks__:
+                await self.dispatch((command, server_id))(self, message, *args)
+            else:
+                await self.discord_client.send_message(
+                    message.channel,
+                    ('_Unknown command "{}". Type **!help** for '
+                     'more information._'.format(command))
+                )
             return
 
         # Learn what has been told
