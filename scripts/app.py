@@ -5,6 +5,7 @@ import aiohttp
 from bsol.app import Application
 
 from cacophony import Cacophony, CacophonyDispatcher
+from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
 from chattymarkov.database.redis import RedisDatabase
 
@@ -12,6 +13,7 @@ import discord
 import importlib
 import json
 import random
+import sqlalchemy
 
 import urllib.parse
 
@@ -23,7 +25,19 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         self.discord_client = None  # Discord link
         self.loop = None  # asyncio loop
         self.bots = {}  # Key is discord server, value is bot instance
+        self._cacophony_db = None  # Cacophony relational database
+        self._session_maker = None  # Session maker to the database
         super().__init__(name='cacophony', *args, **kwargs)
+        self._init_cacophony_database()
+
+    @property
+    def database(self):
+        return self._cacophony_db
+
+    def create_database_session(self):
+        if self._session_maker is None:
+            return  # cannot create session
+        return self._session_maker()
 
     def _check_discord_config(self):
         if 'discord' not in self.conf and \
@@ -31,6 +45,21 @@ class CacophonyApplication(Application, CacophonyDispatcher):
                 'password' not in self.conf['discord']:
             self.error("Please configure your discord credentials.")
             raise SystemExit(-1)
+
+    def _init_cacophony_database(self):
+        if 'databases' in self.conf:
+            db_config = self.conf['databases'].get('cacophony_database')
+            if db_config is None:
+                return  # No database
+
+        # Again, I should consider using a factory pattern here. X(
+        if db_config.get('type', '') == 'SQLITE_FILE':
+            self._cacophony_db = sqlalchemy.create_engine(
+                'sqlite:///{}'.format(db_config.get('path', ':memory:')),
+                echo=True)
+            BaseModel.metadata.create_all(self._cacophony_db)
+            self._session_maker = sqlalchemy.orm.sessionmaker()
+            self._session_maker.configure(bind=self._cacophony_db)
 
     def build_brain(self, name):
         if name not in self.conf['databases']:
@@ -177,9 +206,10 @@ class CacophonyApplication(Application, CacophonyDispatcher):
             command, *args = message.content.split(' ')
             if (command, '*') in self.__callbacks__:
                 await self.dispatch((command, '*'))(self, message, *args)
+                return
             elif (command, server_id) in self.__callbacks__:
                 await self.dispatch((command, server_id))(self, message, *args)
-            return
+                return
 
         # Learn what has been told
         bot.brain.learn(message_content)
