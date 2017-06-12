@@ -143,12 +143,37 @@ class CacophonyApplication(Application, CacophonyDispatcher):
     @CacophonyDispatcher.register(('!help', '*'))
     async def on_help(self, message, *args):
         """Display the list of available commands by private message."""
-        output = "**Available commands:**\n\n"
-        for ((command, server), cb) in self.dispatcher.items():
-            if server != '*' and message.server.id != server:
-                continue
-            output += "**{}**: {}\n".format(command, cb.__doc__)
-        await self.discord_client.send_message(message.author, output)
+        if len(args) > 0:
+            sub_command, *_ = args
+            sub_command = "!" + sub_command
+            if (sub_command, '*') in self.dispatcher:
+                callback = self.dispatcher.get((sub_command, '*'))
+            elif (sub_command, message.server.id) in self.dispatcher:
+                callback = self.dispatcher.get(
+                    (sub_command, message.server.id))
+            else:
+                callback = None
+
+            if callback is None:
+                await self.discord_client.send_message(
+                    message.author,
+                    ("_Unknown command {}_. Type !help "
+                     "for more information.".format(sub_command)))
+                return
+
+            await self.discord_client.send_message(
+                message.author,
+                "**{}**\n\n```{}```".format(sub_command, callback.__doc__))
+        else:
+            output = "**Available commands:**\n\n"
+            for ((command, server), cb) in self.dispatcher.items():
+                if server != '*' and message.server.id != server:
+                    continue
+                summary_doc, *_ = cb.__doc__.split('\n\n')
+                output += "**{}**: {}\n".format(command, summary_doc)
+            output += ("\nFor further help on any command,"
+                       " type !help _command_ (Exemple: !help anim)")
+            await self.discord_client.send_message(message.author, output)
 
     @CacophonyDispatcher.register(('!ping', '*'))
     async def on_ping(self, message, *args):
