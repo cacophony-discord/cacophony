@@ -9,6 +9,7 @@ from chattymarkov import ChattyMarkov
 from chattymarkov.database.redis import RedisDatabase
 
 import discord
+import importlib
 import json
 import random
 
@@ -58,7 +59,8 @@ class CacophonyApplication(Application, CacophonyDispatcher):
 
             self.info("- %s (ID: %s)", server, server.id)
             if server.id not in discord_servers:
-                self.warning("No server ID '%s' in config. Skipping.")
+                self.warning("No server ID '%s' in config. Skipping.",
+                             server.id)
                 continue
 
             # Build the brain for the server
@@ -81,9 +83,33 @@ class CacophonyApplication(Application, CacophonyDispatcher):
             if len(extra_commands) > 0:
                 self._load_extra_commands(server.id, extra_commands)
 
-    def _load_extra_commands(server_id, extra_commands):
-        """TODO: load extra commands."""
-        pass
+            # Schedule jobs if any
+            self._schedule_jobs(server, discord_servers[server.id])
+
+    def _schedule_jobs(self, server, server_config):
+        """Load some specific coroutine jobs described in config."""
+        jobs = server_config.get("jobs", list())
+        for job in jobs:
+            module = importlib.import_module(".jobs.{}".format(job),
+                                             package="cacophony")
+            coroutine = module.load()
+            self.info("Loaded job '%s'", job)
+            channels = [channel for channel in server.channels
+                        if channel.name in server_config.get(
+                            'channels', list())]
+            for channel in channels:
+                self.info("Schedule job %s for %s:%s", job,
+                          server.name, channel.name)
+                self.loop.call_soon(asyncio.async, coroutine(self, channel))
+
+    def _load_extra_commands(self, server_id, extra_commands):
+        """Load extra commands."""
+        for command in extra_commands:
+            self.info("Will load %s", command)
+            module = importlib.import_module(".commands.{}".format(command),
+                                             package="cacophony")
+            command, function = module.load()
+            CacophonyDispatcher.set_callback((command, server_id), function)
 
     @CacophonyDispatcher.register(('!help', '*'))
     async def on_help(self, message, *args):
@@ -153,12 +179,6 @@ class CacophonyApplication(Application, CacophonyDispatcher):
                 await self.dispatch((command, '*'))(self, message, *args)
             elif (command, server_id) in self.__callbacks__:
                 await self.dispatch((command, server_id))(self, message, *args)
-            else:
-                await self.discord_client.send_message(
-                    message.channel,
-                    ('_Unknown command "{}". Type **!help** for '
-                     'more information._'.format(command))
-                )
             return
 
         # Learn what has been told
