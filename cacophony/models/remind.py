@@ -36,7 +36,7 @@ class Remind(Base):
             return "in {} hour{}".format(
                 hours, "s" if hours > 1 else "")
         elif delta.seconds > 60:
-            minutes = delta.minutes // 60
+            minutes = delta.seconds // 60
             return "in {} minute{}".format(
                 minutes, "s" if minutes > 1 else "")
         else:

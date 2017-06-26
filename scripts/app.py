@@ -55,8 +55,7 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         # Again, I should consider using a factory pattern here. X(
         if db_config.get('type', '') == 'SQLITE_FILE':
             self._cacophony_db = sqlalchemy.create_engine(
-                'sqlite:///{}'.format(db_config.get('path', ':memory:')),
-                echo=True)
+                'sqlite:///{}'.format(db_config.get('path', ':memory:')))
             BaseModel.metadata.create_all(self._cacophony_db)
             self._session_maker = sqlalchemy.orm.sessionmaker()
             self._session_maker.configure(bind=self._cacophony_db)
