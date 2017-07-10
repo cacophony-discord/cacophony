@@ -230,10 +230,9 @@ class CacophonyApplication(Application, CacophonyDispatcher):
             command, *args = message.content.split(' ')
             if (command, '*') in self.__callbacks__:
                 await self.dispatch((command, '*'))(self, message, *args)
-                return
             elif (command, server_id) in self.__callbacks__:
                 await self.dispatch((command, server_id))(self, message, *args)
-                return
+            return
 
         # Learn what has been told
         bot.brain.learn(message_content)
@@ -281,7 +280,10 @@ class CacophonyApplication(Application, CacophonyDispatcher):
                                           self.conf['discord']['password']))
         except KeyboardInterrupt:
             self.loop.run_until_complete(self.discord_client.logout())
+        except Exception as exn:
+            self.info("Caught %s", str(exn))
         finally:
+            self.info("Terminating...")
             self.loop.close()
         raise SystemExit(0)
 
