@@ -113,6 +113,8 @@ class CacophonyApplication(Application, CacophonyDispatcher):
 
             # Schedule jobs if any
             self._schedule_jobs(server, discord_servers[server.id])
+        await self.discord_client.change_status(
+                discord.Game(name="Type !help for more information."))
 
     def _schedule_jobs(self, server, server_config):
         """Load some specific coroutine jobs described in config."""
@@ -281,7 +283,7 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         except KeyboardInterrupt:
             self.loop.run_until_complete(self.discord_client.logout())
         except Exception as exn:
-            self.info("Caught %s", str(exn))
+            self.info("Caught %s %s", type(exn), str(exn))
         finally:
             self.info("Terminating...")
             self.loop.close()
