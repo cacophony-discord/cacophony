@@ -50,7 +50,7 @@ class CacophonyApplication(Application):
 
     def _init_cacophony_database(self):
         if 'databases' in self.conf:
-            db_config = self.conf['databases'].get('cacophony_database', '')
+            db_config = self.conf['databases'].get('cacophony_database')
             self.info("%s", db_config)
             if db_config is None:
                 return  # No database
