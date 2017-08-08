@@ -4,7 +4,7 @@ import asyncio
 import aiohttp
 from bsol.app import Application
 
-from cacophony import Cacophony, CacophonyDispatcher
+from cacophony import Cacophony
 from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
 from chattymarkov.database.redis import RedisDatabase
@@ -19,7 +19,7 @@ import sqlalchemy
 import urllib.parse
 
 
-class CacophonyApplication(Application, CacophonyDispatcher):
+class CacophonyApplication(Application):
     """Application class."""
 
     def __init__(self, name='cacophony', *args, **kwargs):
@@ -29,6 +29,7 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         self._cacophony_db = None  # Cacophony relational database
         self._session_maker = None  # Session maker to the database
         super().__init__(name=name, *args, **kwargs)
+        self.callbacks = {}
         self._init_cacophony_database()
 
     @property
@@ -144,50 +145,8 @@ class CacophonyApplication(Application, CacophonyDispatcher):
             module = importlib.import_module(".commands.{}".format(command),
                                              package="cacophony")
             command, function = module.load()
-            CacophonyDispatcher.set_callback((command, server_id), function)
+            self.callbacks[(command, server_id)] = function
 
-    @CacophonyDispatcher.register(('!help', '*'))
-    async def on_help(self, message, *args):
-        """Display the list of available commands by private message."""
-        if len(args) > 0:
-            sub_command, *_ = args
-            sub_command = "!" + sub_command
-            if (sub_command, '*') in self.dispatcher:
-                callback = self.dispatcher.get((sub_command, '*'))
-            elif (sub_command, message.server.id) in self.dispatcher:
-                callback = self.dispatcher.get(
-                    (sub_command, message.server.id))
-            else:
-                callback = None
-
-            if callback is None:
-                await self.discord_client.send_message(
-                    message.author,
-                    ("_Unknown command {}_. Type !help "
-                     "for more information.".format(sub_command)))
-                return
-
-            await self.discord_client.send_message(
-                message.author,
-                "**{}**\n\n```{}```".format(sub_command, callback.__doc__))
-        else:
-            output = "**Available commands:**\n\n"
-            for ((command, server), cb) in self.dispatcher.items():
-                if server != '*' and message.server.id != server:
-                    continue
-                summary_doc, *_ = cb.__doc__.split('\n\n')
-                output += "**{}**: {}\n".format(command, summary_doc)
-            output += ("\nFor further help on any command,"
-                       " type !help _command_ (Exemple: !help anim)")
-            await self.discord_client.send_message(message.author, output)
-
-    @CacophonyDispatcher.register(('!ping', '*'))
-    async def on_ping(self, message, *args):
-        """Ping the bot that will answer with a 'Pong!' message."""
-        await self.discord_client.send_message(message.channel,
-                                               '_Pong!_')
-
-    @CacophonyDispatcher.register(('!anim', '*'))
     async def on_anim(self, message, *args):
         """Reply with a random gif given the provided keyword."""
         tag = urllib.parse.quote_plus(' '.join(args))
@@ -235,10 +194,11 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         if message_content.startswith('!') and \
                 message.channel.name in bot.channels:
             command, *args = message.content.split(' ')
-            if (command, '*') in self.__callbacks__:
-                await self.dispatch((command, '*'))(self, message, *args)
-            elif (command, server_id) in self.__callbacks__:
-                await self.dispatch((command, server_id))(self, message, *args)
+            if (command, '*') in self.callbacks:
+                await self.callbacks[(command, '*')](self, message, *args)
+            elif (command, server_id) in self.callbacks:
+                await self.callbacks[(command, server_id)](self,
+                                                           message, *args)
             return
 
         # Learn what has been told
@@ -272,6 +232,10 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         """Hack to register discord callbacks."""
         self.discord_client.on_ready = self.on_ready
         self.discord_client.on_message = self.on_message
+
+        # And register generic command callbacks
+        self.callbacks[('!ping', '*')] = on_ping
+        self.callbacks[('!help', '*')] = on_help
 
     def run(self):
         self.info(self.conf)
@@ -308,12 +272,54 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         raise SystemExit(0)
 
 
+async def on_ping(self, message, *args):
+    """Ping the bot that will answer with a 'Pong!' message."""
+    await self.discord_client.send_message(message.channel,
+                                           '_Pong!_')
+
+
+async def on_help(self, message, *args):
+    """Display the list of available commands by private message."""
+    if len(args) > 0:
+        sub_command, *_ = args
+        sub_command = "!" + sub_command
+        if (sub_command, '*') in self.callbacks:
+            callback = self.callbacks.get((sub_command, '*'))
+        elif (sub_command, message.server.id) in self.dispatcher:
+            callback = self.callbacks.get(
+                (sub_command, message.server.id))
+        else:
+            callback = None
+
+        if callback is None:
+            await self.discord_client.send_message(
+                message.author,
+                ("_Unknown command {}_. Type !help "
+                 "for more information.".format(sub_command)))
+            return
+
+        await self.discord_client.send_message(
+            message.author,
+            "**{}**\n\n```{}```".format(sub_command, callback.__doc__))
+    else:
+        output = "**Available commands:**\n\n"
+        for ((command, server), cb) in self.callbacks.items():
+            if server != '*' and message.server.id != server:
+                continue
+            summary_doc, *_ = cb.__doc__.split('\n\n')
+            output += "**{}**: {}\n".format(command, summary_doc)
+        output += ("\nFor further help on any command,"
+                   " type !help _command_ (Exemple: !help anim)")
+        await self.discord_client.send_message(message.author, output)
+
+
 @click.command()
 @click.argument('name')
 def run(name='cacophony'):
     """Instanciate an application, then run it."""
     app = CacophonyApplication(name=name)
     app.run()
+
 
 if __name__ == "__main__":
     run()

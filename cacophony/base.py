@@ -1,34 +1,3 @@
-from collections import ChainMap
-
-
-class DispatcherMeta(type):
-    def __new__(mcs, name, bases, attrs):
-        callbacks = ChainMap()
-        maps = callbacks.maps
-        for base in bases:
-            if isinstance(base, DispatcherMeta):
-                maps.extend(base.__callbacks__.maps)
-
-        attrs['__callbacks__'] = callbacks
-        attrs['dispatcher'] = property(lambda obj: callbacks)
-        cls = super().__new__(mcs, name, bases, attrs)
-        return cls
-
-    def set_callback(cls, key, callback):
-        cls.__callbacks__[key] = callback
-        return callback
-
-    def register(cls, key):
-        def wrapper(callback):
-            return cls.set_callback(key, callback)
-        return wrapper
-
-
-class CacophonyDispatcher(metaclass=DispatcherMeta):
-    def dispatch(self, key, default=None):
-        return self.dispatcher.get(key, default)
-
-
 class Cacophony:
     def __init__(self, logger, name, markov_brain, channels=None,
                  chattyness=0.1, *args, **kwargs):
