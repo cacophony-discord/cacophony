@@ -1,0 +1,7 @@
+aiohttp
+click
+discord.py
+lxml
+redis
+sqlalchemy
+pyaml
