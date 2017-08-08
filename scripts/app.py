@@ -10,6 +10,7 @@ from chattymarkov import ChattyMarkov
 from chattymarkov.database.redis import RedisDatabase
 
 import discord
+import click
 import importlib
 import json
 import random
@@ -21,13 +22,13 @@ import urllib.parse
 class CacophonyApplication(Application, CacophonyDispatcher):
     """Application class."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name='cacophony', *args, **kwargs):
         self.discord_client = None  # Discord link
         self.loop = None  # asyncio loop
         self.bots = {}  # Key is discord server, value is bot instance
         self._cacophony_db = None  # Cacophony relational database
         self._session_maker = None  # Session maker to the database
-        super().__init__(name='cacophony', *args, **kwargs)
+        super().__init__(name=name, *args, **kwargs)
         self._init_cacophony_database()
 
     @property
@@ -48,9 +49,12 @@ class CacophonyApplication(Application, CacophonyDispatcher):
 
     def _init_cacophony_database(self):
         if 'databases' in self.conf:
-            db_config = self.conf['databases'].get('cacophony_database')
+            db_config = self.conf['databases'].get('cacophony_database', '')
+            self.info("%s", db_config)
             if db_config is None:
                 return  # No database
+        else:
+            return  # No database, skip.
 
         # Again, I should consider using a factory pattern here. X(
         if db_config.get('type', '') == 'SQLITE_FILE':
@@ -113,8 +117,8 @@ class CacophonyApplication(Application, CacophonyDispatcher):
 
             # Schedule jobs if any
             self._schedule_jobs(server, discord_servers[server.id])
-        await self.discord_client.change_status(
-                discord.Game(name="Type !help for more information."))
+        await self.discord_client.change_presence(
+                game=discord.Game(name="Type !help for more information."))
 
     def _schedule_jobs(self, server, server_config):
         """Load some specific coroutine jobs described in config."""
@@ -127,10 +131,11 @@ class CacophonyApplication(Application, CacophonyDispatcher):
             channels = [channel for channel in server.channels
                         if channel.name in server_config.get(
                             'channels', list())]
+            self.info("Channels are: %s", channels)
             for channel in channels:
                 self.info("Schedule job %s for %s:%s", job,
                           server.name, channel.name)
-                self.loop.call_soon(asyncio.async, coroutine(self, channel))
+                asyncio.ensure_future(coroutine(self, channel), loop=self.loop)
 
     def _load_extra_commands(self, server_id, extra_commands):
         """Load extra commands."""
@@ -272,14 +277,27 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         self.info(self.conf)
         self.discord_client = discord.Client()
         self.loop = asyncio.get_event_loop()
-        self.debug("Will log with %s:%s", self.conf['discord']['email'],
-                   self.conf['discord']['password'])
+        discord_conf = self.conf.get('discord')
+        if discord_conf is None:
+            self.error("Discord configuration is absent. Quitting...")
+            raise SystemExit(-1)
+
+        token = discord_conf.get('token')
+        if token is not None:
+            start_args = [token]
+            self.debug("Will log using token '%s'", token)
+        else:
+            start_args = [discord_conf.get('email'),
+                          discord_conf.get('password')]
+
+            self.debug("Will log with %s:%s", self.conf['discord']['email'],
+                       self.conf['discord']['password'])
 
         self.register_discord_callbacks()
         try:
+            self.info("Args are: %s", start_args)
             self.loop.run_until_complete(
-                self.discord_client.start(self.conf['discord']['email'],
-                                          self.conf['discord']['password']))
+                self.discord_client.start(*start_args))
         except KeyboardInterrupt:
             self.loop.run_until_complete(self.discord_client.logout())
         except Exception as exn:
@@ -290,5 +308,12 @@ class CacophonyApplication(Application, CacophonyDispatcher):
         raise SystemExit(0)
 
 
+@click.command()
+@click.argument('name')
+def run(name='cacophony'):
+    """Instanciate an application, then run it."""
+    app = CacophonyApplication(name=name)
+    app.run()
+
 if __name__ == "__main__":
-    CacophonyApplication().run()
+    run()
