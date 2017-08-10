@@ -9,6 +9,7 @@ from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
 from chattymarkov.database.redis import RedisDatabase
 
+from collections import defaultdict
 import discord
 import click
 import importlib
@@ -28,8 +29,9 @@ class CacophonyApplication(Application):
         self.bots = {}  # Key is discord server, value is bot instance
         self._cacophony_db = None  # Cacophony relational database
         self._session_maker = None  # Session maker to the database
-        super().__init__(name=name, *args, **kwargs)
+        self.hooks = {}
         self.callbacks = {}
+        super().__init__(name=name, *args, **kwargs)
         self._init_cacophony_database()
 
     @property
@@ -118,6 +120,11 @@ class CacophonyApplication(Application):
 
             # Schedule jobs if any
             self._schedule_jobs(server, discord_servers[server.id])
+
+            # Load hooks if any
+            hooks = discord_servers[server.id].get('hooks', [])
+            self._load_hooks(server.id, hooks)
+
         await self.discord_client.change_presence(
                 game=discord.Game(name="Type !help for more information."))
 
@@ -147,6 +154,19 @@ class CacophonyApplication(Application):
             command, function = module.load()
             self.callbacks[(command, server_id)] = function
 
+    def _load_hooks(self, server_id, hooks):
+        """Load hooks for a specific server."""
+        self.info("Will load hooks.")
+        loaded_hooks = defaultdict(list)
+        for hook in hooks:
+            self.info("Load hook '%s' for server id '%s'", hook, server_id)
+            module = importlib.import_module(".hooks.{}".format(hook),
+                                           package="cacophony")
+            # hookee represents the action being hooked (e.g. 'on_message')
+            hookee, hook = module.load()
+            loaded_hooks[hookee].append(hook)
+        self.hooks[server_id] = loaded_hooks
+
     async def on_anim(self, message, *args):
         """Reply with a random gif given the provided keyword."""
         tag = urllib.parse.quote_plus(' '.join(args))
@@ -166,6 +186,7 @@ class CacophonyApplication(Application):
     async def on_message(self, message):
         self.info("%s %s %s: %s", message.server, message.channel,
                   message.author, message.content)
+
         message_content = message.content
 
         # How to handle private messages properly? Type attribute maybe.
@@ -190,6 +211,14 @@ class CacophonyApplication(Application):
         if bot is None:
             self.warning("Bot instance is 'None'")
             return  # Nothing to do
+
+        # Call hooks if any
+        for hook in self.hooks[server_id]['on_message']:
+            if await hook(self, message):
+                continue  # The hook returned True. Continue
+            else:
+                return  # The hook return False. Do nothing else.
+
 
         if message_content.startswith('!') and \
                 message.channel.name in bot.channels:
