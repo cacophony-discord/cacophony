@@ -161,7 +161,7 @@ class CacophonyApplication(Application):
         for hook in hooks:
             self.info("Load hook '%s' for server id '%s'", hook, server_id)
             module = importlib.import_module(".hooks.{}".format(hook),
-                                           package="cacophony")
+                                             package="cacophony")
             # hookee represents the action being hooked (e.g. 'on_message')
             hookee, hook = module.load()
             loaded_hooks[hookee].append(hook)
@@ -219,7 +219,6 @@ class CacophonyApplication(Application):
             else:
                 return  # The hook return False. Do nothing else.
 
-
         if message_content.startswith('!') and \
                 message.channel.name in bot.channels:
             command, *args = message.content.split(' ')
@@ -256,6 +255,17 @@ class CacophonyApplication(Application):
                                            answer)
             await self.discord_client.send_message(message.channel,
                                                    answer)
+
+    async def on_member_join(self, member):
+        self.info("%s joined the server '%s'!",
+                  member.nick, member.server.name)
+        server_id = member.server.id
+        # Call hooks if any
+        for hook in self.hooks[server_id]['on_member_join']:
+            if await hook(self, member):
+                continue  # The hook returned True. Continue
+            else:
+                return  # The hook return False. Do nothing else.
 
     def register_discord_callbacks(self):
         """Hack to register discord callbacks."""
