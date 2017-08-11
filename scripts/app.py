@@ -271,6 +271,7 @@ class CacophonyApplication(Application):
         """Hack to register discord callbacks."""
         self.discord_client.on_ready = self.on_ready
         self.discord_client.on_message = self.on_message
+        self.discord_client.on_member_join = self.on_member_join
 
         # And register generic command callbacks
         self.callbacks[('!ping', '*')] = on_ping
