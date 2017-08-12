@@ -28,7 +28,7 @@ setup(
     name='cacophony',
     version=version(),
     description='Cacophony dump Discord Bot',
-    url='https://gitlab.com/ge0_/cacophony',
+    url='https://github.com/Ge0/cacophony',
     licence='MIT',
     include_package_data=True,
     packages=[
