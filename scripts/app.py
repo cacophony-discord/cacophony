@@ -330,17 +330,18 @@ async def on_mute(self, message, *args):
                      "configured god!",
                      message.server.id)
     else:
-        if message.author.id != int(god):
+        if message.author.id != god:
             self.warning("Don't have permission to mute/unmute the god!")
             return
 
-        bot.mute = not bot.mute
         if bot.is_mute:
-            await self.discord_client.send_message(message.channel,
-                                                   "_The bot is now mute!_")
-        else:
+            bot.unmute()
             await self.discord_client.send_message(message.channel,
                                                    "_The bot is now unmute!_")
+        else:
+            bot.mute()
+            await self.discord_client.send_message(message.channel,
+                                                   "_The bot is now mute!_")
 
 
 async def on_help(self, message, *args):
