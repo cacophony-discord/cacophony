@@ -276,6 +276,7 @@ class CacophonyApplication(Application):
         # And register generic command callbacks
         self.callbacks[('!ping', '*')] = on_ping
         self.callbacks[('!help', '*')] = on_help
+        self.callbacks[('!mute', '*')] = on_mute
 
     def run(self):
         self.info(self.conf)
@@ -316,6 +317,30 @@ async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
     await self.discord_client.send_message(message.channel,
                                            '_Pong!_')
+
+
+async def on_mute(self, message, *args):
+    """Mute/unmute the bot."""
+
+    try:
+        god = self.conf['discord']['god']
+        bot = self.bots[message.server.id]
+    except KeyError:
+        self.warning("There is not bot instance for server '%s' nor "
+                     "configured god!",
+                     message.server.id)
+    else:
+        if message.author.id != int(god):
+            self.warning("Don't have permission to mute/unmute the god!")
+            return
+
+        bot.mute = not bot.mute
+        if bot.is_mute:
+            await self.discord_client.send_message(message.channel,
+                                                   "_The bot is now mute!_")
+        else:
+            await self.discord_client.send_message(message.channel,
+                                                   "_The bot is now unmute!_")
 
 
 async def on_help(self, message, *args):
