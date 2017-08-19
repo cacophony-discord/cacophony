@@ -123,8 +123,8 @@ async def on_roulette(app, message, *args):
         # Grand bonus to the other players
         if len(shooters) > 0:
             del shooters[player_id]
-            for player_id, bonus in shooters.items():
-                await _update_score(session, server_id, player_id, bonus)
+            for player, bonus in shooters.items():
+                await _update_score(session, server_id, player, bonus)
 
         answer = ("**{}** pulls the trigger... "
                   "*BOOM*! **HEADSHOT**!".format(server_members[player_id]))
