@@ -357,7 +357,7 @@ async def on_help(self, message, *args):
         sub_command = "!" + sub_command
         if (sub_command, '*') in self.callbacks:
             callback = self.callbacks.get((sub_command, '*'))
-        elif (sub_command, message.server.id) in self.dispatcher:
+        elif (sub_command, message.server.id) in self.callbacks:
             callback = self.callbacks.get(
                 (sub_command, message.server.id))
         else:
