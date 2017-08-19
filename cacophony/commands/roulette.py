@@ -123,7 +123,7 @@ async def on_roulette(app, message, *args):
         if len(shooters) > 0:
             del shooters[player_id]
             for player_id, bonus in shooters.items():
-                await _update_score(server_id, player_id, bonus)
+                await _update_score(session, server_id, player_id, bonus)
 
         answer = ("**{}** pulls the trigger... "
                   "*BOOM*! **HEADSHOT**!".format(server_members[player_id]))
