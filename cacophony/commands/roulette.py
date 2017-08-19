@@ -40,7 +40,8 @@ async def _on_roulette_stats(app, message, roulette_length):
     """Display the statistics about the roulette
     (top score and current game).
     """
-    server_members = {int(m.id): m.name for m in message.server.members}
+    server_members = {int(m.id): m.display_name
+                      for m in message.server.members}
     session = app.create_database_session()
     top_players = session.query(RoulettePlayer).filter_by(
         server_id=message.server.id
@@ -83,7 +84,7 @@ async def on_roulette(app, message, *args):
     server_id = message.server.id
     channel_id = message.channel.id
 
-    server_members = {m.id: m.name for m in message.server.members}
+    server_members = {m.id: m.display_name for m in message.server.members}
 
     if (server_id, channel_id) not in ROULETTES:
         await _setup_roulette(server_id, channel_id)
