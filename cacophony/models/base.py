@@ -5,4 +5,4 @@ from sqlalchemy import Column, DateTime, Integer, String
 
 Base = declarative_base()
 
-from . import remind
+from . import remind, roulette
