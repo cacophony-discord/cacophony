@@ -12,4 +12,4 @@ async def urlfilter(app, message):
 
 
 def load():
-    return 'on_message', urlfilter
+    return 'on_answer', urlfilter

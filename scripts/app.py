@@ -253,6 +253,12 @@ class CacophonyApplication(Application):
             if mentioned:
                 answer = "<@{}> {}".format(message.author.id,
                                            answer)
+            # Call hooks if any
+            for hook in self.hooks[server_id]['on_answer']:
+                if await hook(self, answer):
+                    continue  # The hook returned True. Continue
+                else:
+                    return  # The hook return False. Do nothing else.
             await self.discord_client.send_message(message.channel,
                                                    answer)
 
