@@ -92,9 +92,15 @@ async def on_roulette(app, message, *args):
     roulette = ROULETTES[(server_id, channel_id)]
     shooters = SHOOTERS[(server_id, channel_id)]
 
-    if len(args) > 0 and args[0] == "stats":
-        # Display stats
-        await _on_roulette_stats(app, message, len(roulette))
+    if len(args) > 0:
+        if args[0] == "stats":
+            # Display stats
+            await _on_roulette_stats(app, message, len(roulette))
+        else:
+            await app.discord_client.send_message(
+                message.channel,
+                ("_Unknown arg '{}'. Type !help roulette "
+                 "for more information._").format(args[0]))
         return
 
     chamber = roulette.popleft()
