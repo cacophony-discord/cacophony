@@ -103,7 +103,7 @@ class CacophonyApplication(Application):
             if brain:
                 chattyness = discord_servers[server.id].get('chattyness',
                                                             0.1)
-                channels = discord_servers[server.id].get('channels')
+                channels = discord_servers[server.id].get('chatty_channels')
                 self.bots[server.id] = Cacophony(
                     logger=self.logger,
                     name=discord_servers[server.id]['nickname'],
@@ -114,7 +114,7 @@ class CacophonyApplication(Application):
                              server)
 
             # Load extra-commands if any
-            extra_commands = discord_servers[server.id].get('commands', [])
+            extra_commands = discord_servers[server.id].get('commands', {})
             if len(extra_commands) > 0:
                 self._load_extra_commands(server.id, extra_commands)
 
@@ -147,7 +147,7 @@ class CacophonyApplication(Application):
 
     def _load_extra_commands(self, server_id, extra_commands):
         """Load extra commands."""
-        for command in extra_commands:
+        for command, config in extra_commands.items():
             self.info("Will load %s", command)
             module = importlib.import_module(".commands.{}".format(command),
                                              package="cacophony")
@@ -166,6 +166,21 @@ class CacophonyApplication(Application):
             hookee, hook = module.load()
             loaded_hooks[hookee].append(hook)
         self.hooks[server_id] = loaded_hooks
+
+    def _is_command_allowed(self, server_id, channel, command):
+        """Check wether a command can be executed on some channel."""
+        try:
+            channels = self.conf['discord']['servers'][server_id]\
+                    ['commands'][command]['_channels']
+        except KeyError as exn:
+            self.warning("KeyError caught in is_command_allowed: %s",
+                         str(exn))
+            return False
+        else:
+            if '*' in channels or channel in channels:
+                return True
+            else:
+                return False
 
     async def on_anim(self, message, *args):
         """Reply with a random gif given the provided keyword."""
@@ -219,9 +234,13 @@ class CacophonyApplication(Application):
             else:
                 return  # The hook return False. Do nothing else.
 
-        if message_content.startswith('!') and \
-                message.channel.name in bot.channels:
+        if message_content.startswith('!'):
             command, *args = message.content.split(' ')
+            if not self._is_command_allowed(server_id,
+                                            message.channel.name,
+                                            command[1:]):
+                return
+
             if (command, '*') in self.callbacks:
                 await self.callbacks[(command, '*')](self, message, *args)
             elif (command, server_id) in self.callbacks:
