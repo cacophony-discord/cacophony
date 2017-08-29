@@ -169,9 +169,14 @@ class CacophonyApplication(Application):
 
     def _is_command_allowed(self, server_id, channel, command):
         """Check wether a command can be executed on some channel."""
+        if (command, '*') in self.callbacks:
+            return True  # Generic commands are always allowed
+
+        # Strip the '!'
+        command = command[1:]
         try:
-            channels = self.conf['discord']['servers'][server_id]\
-                    ['commands'][command]['_channels']
+            channels = self.conf['discord']['servers'][server_id][
+                    'commands'][command]['_channels']
         except KeyError as exn:
             self.warning("KeyError caught in is_command_allowed: %s",
                          str(exn))
@@ -238,7 +243,7 @@ class CacophonyApplication(Application):
             command, *args = message.content.split(' ')
             if not self._is_command_allowed(server_id,
                                             message.channel.name,
-                                            command[1:]):
+                                            command):
                 return
 
             if (command, '*') in self.callbacks:
