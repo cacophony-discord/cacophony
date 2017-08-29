@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncio
-import aiohttp
 from bsol.app import Application
 
 from cacophony import Cacophony
@@ -13,11 +12,8 @@ from collections import defaultdict
 import discord
 import click
 import importlib
-import json
 import random
 import sqlalchemy
-
-import urllib.parse
 
 
 class CacophonyApplication(Application):
@@ -186,22 +182,6 @@ class CacophonyApplication(Application):
                 return True
             else:
                 return False
-
-    async def on_anim(self, message, *args):
-        """Reply with a random gif given the provided keyword."""
-        tag = urllib.parse.quote_plus(' '.join(args))
-        base_url = ('https://api.giphy.com/v1/gifs/random?tag={}&'
-                    'api_key=dc6zaTOxFJmzC'.format(tag))
-        async with aiohttp.ClientSession() as session:
-            async with session.get(base_url) as resp:
-                json_content = json.loads(await resp.text())
-                if 'data' in json_content and 'image_original_url' \
-                        in json_content['data']:
-                    answer = json_content['data']['image_original_url']
-                else:
-                    answer = '_No gif found for keyword "{}"_'.format(
-                        ' '.join(args))
-        await self.discord_client.send_message(message.channel, answer)
 
     async def on_message(self, message):
         self.info("%s %s %s: %s", message.server, message.channel,
