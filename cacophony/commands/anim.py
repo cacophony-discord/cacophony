@@ -6,7 +6,8 @@ import json
 async def on_anim(self, message, *args):
     """Reply with a random gif given the provided keyword."""
     if len(args) < 1:
-        await self.discord_client.send_message(message.channel,
+        await self.discord_client.send_message(
+            message.channel,
             "_Missing keyword. Type !help anim for more information._")
         return
 
