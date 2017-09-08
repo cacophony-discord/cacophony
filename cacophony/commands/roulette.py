@@ -103,6 +103,9 @@ async def on_roulette(app, message, *args):
                  "for more information._").format(args[0]))
         return
 
+    if len(roulette) == 0:
+        await _setup_roulette(server_id, channel_id)
+
     chamber = roulette.popleft()
     if chamber == 1:
         # The player has been shot. Update his score and reset the roulette.
