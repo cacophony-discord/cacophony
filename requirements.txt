@@ -1,4 +1,5 @@
 aiohttp
+chattymarkov
 click
 discord.py
 lxml
