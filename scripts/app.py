@@ -309,17 +309,21 @@ class CacophonyApplication(Application):
                        self.conf['discord']['password'])
 
         self.register_discord_callbacks()
-        try:
-            self.info("Args are: %s", start_args)
-            self.loop.run_until_complete(
-                self.discord_client.start(*start_args))
-        except KeyboardInterrupt:
-            self.loop.run_until_complete(self.discord_client.logout())
-        except Exception as exn:
-            self.info("Caught %s %s", type(exn), str(exn))
-        finally:
-            self.info("Terminating...")
-            self.loop.close()
+        is_running = True
+        while is_running:
+            try:
+                self.info("Args are: %s", start_args)
+                self.loop.run_until_complete(
+                    self.discord_client.start(*start_args))
+            except KeyboardInterrupt:
+                self.info("Caught ^C signal.")
+                self.loop.run_until_complete(self.discord_client.logout())
+                is_running = False
+            except Exception as exn:
+                self.info("Caught %s %s", type(exn), str(exn))
+            finally:
+                self.info("Terminating...")
+        self.loop.close()
         raise SystemExit(0)
 
 
