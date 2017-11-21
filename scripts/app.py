@@ -6,7 +6,6 @@ from bsol.app import Application
 from cacophony import Cacophony
 from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
-from chattymarkov.database.redis import RedisDatabase
 
 from collections import defaultdict
 import discord
@@ -63,24 +62,8 @@ class CacophonyApplication(Application):
             self._session_maker = sqlalchemy.orm.sessionmaker()
             self._session_maker.configure(bind=self._cacophony_db)
 
-    def build_brain(self, name):
-        if name not in self.conf['databases']:
-            self.warning("There is no database named '%s'. "
-                         "Skip brain building.")
-            return
-        database_info = self.conf['databases'][name]
-
-        database = None
-        # Consider using factory pattern next time.
-        if database_info['type'] == "REDIS_UNIX_SOCKET":
-            database = RedisDatabase(
-                unix_socket_path=database_info['unix_socket_path'],
-                db=database_info['db'])
-
-        if database is None:
-            self.error("Unknown database type '%s'! Skip brain building.")
-            return
-        return ChattyMarkov(database)
+    def build_brain(self, brain_string):
+        return ChattyMarkov(brain_string)
 
     async def on_ready(self):
         self.info("Ready to roll!")
@@ -95,7 +78,8 @@ class CacophonyApplication(Application):
                 continue
 
             # Build the brain for the server
-            brain = self.build_brain(discord_servers[server.id]['brain'])
+            brain = self.build_brain(
+                discord_servers[server.id]['brain_string'])
             if brain:
                 chattyness = discord_servers[server.id].get('chattyness',
                                                             0.1)
