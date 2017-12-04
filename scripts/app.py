@@ -261,6 +261,10 @@ class CacophonyApplication(Application):
             else:
                 return  # The hook return False. Do nothing else.
 
+    def _load_opus(self):
+        if not discord.opus.is_loaded():
+            discord.opus.load_opus("libopus.so")
+
     def register_discord_callbacks(self):
         """Hack to register discord callbacks."""
         self.discord_client.on_ready = self.on_ready
@@ -271,6 +275,8 @@ class CacophonyApplication(Application):
         self.callbacks[('!ping', '*')] = on_ping
         self.callbacks[('!help', '*')] = on_help
         self.callbacks[('!mute', '*')] = on_mute
+        self.callbacks[('!vjoin', '*')] = on_vjoin
+        self.callbacks[('!vquit', '*')] = on_vquit
 
     def run(self):
         self.info(self.conf)
@@ -293,6 +299,7 @@ class CacophonyApplication(Application):
                        self.conf['discord']['password'])
 
         self.register_discord_callbacks()
+        self._load_opus()
         is_running = True
         while is_running:
             try:
@@ -315,6 +322,38 @@ async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
     await self.discord_client.send_message(message.channel,
                                            '_Pong!_')
+
+
+async def on_vjoin(self, message, *args):
+    """Join the vocal channel the author command is in.
+
+    In order to work succesfully, the command sender must be connected
+    to some discord vocal channel.
+    """
+    voice_channel = message.author.voice.voice_channel
+    self.debug("Voice channel is %s", voice_channel)
+    if voice_channel is not None:
+        # Join the channel the user is in
+        await self.discord_client.join_voice_channel(voice_channel)
+        await self.discord_client.send_message(
+            message.channel,
+            "_Joined {}._".format(voice_channel))
+    else:
+        await self.discord_client.send_message(
+            message.channel,
+            "_You must be in a voice channel so I can catch up with you._")
+
+
+async def on_vquit(self, message, *args):
+    """Quit the vocal channel the bot is on."""
+    if self.discord_client.is_voice_connected(message.server):
+        self.debug("Will disconnect from vocal in %s", message.server)
+        voice_client = self.discord_client.voice_client_in(message.server)
+        voice_channel = voice_client.channel
+        await voice_client.disconnect()
+        await self.discord_client.send_message(
+            message.channel,
+            "_Successfully disconnected from {}_".format(voice_channel))
 
 
 async def on_mute(self, message, *args):
