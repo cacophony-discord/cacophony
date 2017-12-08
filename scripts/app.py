@@ -65,6 +65,10 @@ class CacophonyApplication(Application):
     def build_brain(self, brain_string):
         return ChattyMarkov(brain_string)
 
+    def command_config(self, server_id, command):
+        """Return the configuration associated for `command` on `server_id`."""
+        return self.conf['discord']['servers'][server_id]['commands'][command]
+
     async def on_ready(self):
         self.info("Ready to roll!")
         self.info("Servers are:")
