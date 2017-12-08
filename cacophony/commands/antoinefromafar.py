@@ -30,6 +30,7 @@ async def on_antoinefromafar(self, message, *args):
         acapela = AcapelaGroup()
         if username is not None and password is not None:
             self.debug("Will authenticate with %s:%s", username, password)
+            acapela.authenticate(username, password)
         mp3_url = acapela.get_mp3_url('sonid15',
                                       'AntoineFromAfar (emotive voice)',
                                       text_to_say)
