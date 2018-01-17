@@ -363,26 +363,15 @@ async def on_vquit(self, message, *args):
 async def on_mute(self, message, *args):
     """Mute/unmute the bot."""
 
-    try:
-        god = self.conf['discord']['god']
-        bot = self.bots[message.server.id]
-    except KeyError:
-        self.warning("There is not bot instance for server '%s' nor "
-                     "configured god!",
-                     message.server.id)
+    bot = self.bots[message.server.id]
+    if bot.is_mute:
+        bot.unmute()
+        await self.discord_client.send_message(message.channel,
+                                               "_The bot is now unmute!_")
     else:
-        if message.author.id != god:
-            self.warning("Don't have permission to mute/unmute the god!")
-            return
-
-        if bot.is_mute:
-            bot.unmute()
-            await self.discord_client.send_message(message.channel,
-                                                   "_The bot is now unmute!_")
-        else:
-            bot.mute()
-            await self.discord_client.send_message(message.channel,
-                                                   "_The bot is now mute!_")
+        bot.mute()
+        await self.discord_client.send_message(message.channel,
+                                               "_The bot is now mute!_")
 
 
 async def on_help(self, message, *args):
