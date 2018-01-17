@@ -12,7 +12,7 @@ def mention_clean(server):
 
     def re_callback(match):
         id = match.group(1)
-        return members[id]
+        return members.get(id)
 
     return re_callback
 
