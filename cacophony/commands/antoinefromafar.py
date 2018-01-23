@@ -19,9 +19,12 @@ def mention_clean(server):
 
 async def on_antoinefromafar(self, message, *args):
     """Say something with 'AntoineFromAfar' voice on the voice channel."""
-    text_to_say = _MENTION_REGEX.sub(
-        mention_clean(message.server),
-        self.bots[message.server.id].brain.generate())
+    if len(args) >= 1:
+        text_to_say = ' '.join(args)
+    else:
+        text_to_say = _MENTION_REGEX.sub(
+            mention_clean(message.server),
+            self.bots[message.server.id].brain.generate())
 
     conf = self.command_config(message.server.id, 'antoinefromafar')
     username = conf.get('username')
@@ -31,7 +34,7 @@ async def on_antoinefromafar(self, message, *args):
         if username is not None and password is not None:
             self.debug("Will authenticate with %s:%s", username, password)
             acapela.authenticate(username, password)
-        mp3_url = acapela.get_mp3_url('sonid15',
+        mp3_url = acapela.get_mp3_url('French (France)',
                                       'AntoineFromAfar (emotive voice)',
                                       text_to_say)
     except AcapelaGroupError as err:
