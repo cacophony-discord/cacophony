@@ -277,36 +277,38 @@ class CacophonyApplication(Application):
 
         # And register generic command callbacks
         self.callbacks[('!ping', '*')] = on_ping
+        self.callbacks[('!say', '*')] = on_say
         self.callbacks[('!help', '*')] = on_help
         self.callbacks[('!mute', '*')] = on_mute
         self.callbacks[('!vjoin', '*')] = on_vjoin
         self.callbacks[('!vquit', '*')] = on_vquit
 
     def run(self):
-        self.info(self.conf)
-        self.discord_client = discord.Client()
-        self.loop = asyncio.get_event_loop()
-        discord_conf = self.conf.get('discord')
-        if discord_conf is None:
-            self.error("Discord configuration is absent. Quitting...")
-            raise SystemExit(-1)
-
-        token = discord_conf.get('token')
-        if token is not None:
-            start_args = [token]
-            self.debug("Will log using token '%s'", token)
-        else:
-            start_args = [discord_conf.get('email'),
-                          discord_conf.get('password')]
-
-            self.debug("Will log with %s:%s", self.conf['discord']['email'],
-                       self.conf['discord']['password'])
-
-        self.register_discord_callbacks()
         self._load_opus()
+        self.info(self.conf)
         is_running = True
         while is_running:
             try:
+                self.discord_client = discord.Client()
+                self.loop = asyncio.get_event_loop()
+                discord_conf = self.conf.get('discord')
+                if discord_conf is None:
+                    self.error("Discord configuration is absent. Quitting...")
+                    raise SystemExit(-1)
+
+                token = discord_conf.get('token')
+                if token is not None:
+                    start_args = [token]
+                    self.debug("Will log using token '%s'", token)
+                else:
+                    start_args = [discord_conf.get('email'),
+                                  discord_conf.get('password')]
+
+                    self.debug("Will log with %s:%s",
+                               self.conf['discord']['email'],
+                               self.conf['discord']['password'])
+                self.register_discord_callbacks()
+
                 self.info("Args are: %s", start_args)
                 self.loop.run_until_complete(
                     self.discord_client.start(*start_args))
@@ -326,6 +328,18 @@ async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
     await self.discord_client.send_message(message.channel,
                                            '_Pong!_')
+
+
+async def on_say(self, message, *args):
+    """Simply say what's needed to be said."""
+    try:
+        bot = self.bots[message.server.id]
+    except KeyError:
+        self.logger.info("Unknown bot for server %s", message.server.id)
+    else:
+        if not bot.is_mute:
+            await self.discord_client.send_message(message.channel,
+                                                   ' '.join(args))
 
 
 async def on_vjoin(self, message, *args):
