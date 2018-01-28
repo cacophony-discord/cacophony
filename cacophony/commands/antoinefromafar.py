@@ -5,6 +5,7 @@ import requests
 from acapela_group.base import AcapelaGroup, AcapelaGroupError
 
 _MENTION_REGEX = re.compile(r'<@([0-9]+)>')
+_URL_FILTER = re.compile(r'(https?://[^ ]+|www\.[^ ]+)')
 
 
 def mention_clean(server):
@@ -17,6 +18,19 @@ def mention_clean(server):
     return re_callback
 
 
+def clean_message(msg):
+    return _URL_FILTER.sub(msg, '')
+
+
+def generate_best_message(brain):
+    """Return the longest match amongst 50 generated messages."""
+    sentences = sorted((_URL_FILTER.sub('', brain.generate())
+                        for _ in range(50)),
+                       key=len,
+                       reverse=True)
+    return sentences[0]
+
+
 async def on_antoinefromafar(self, message, *args):
     """Say something with 'AntoineFromAfar' voice on the voice channel."""
     if len(args) >= 1:
@@ -24,7 +38,7 @@ async def on_antoinefromafar(self, message, *args):
     else:
         text_to_say = _MENTION_REGEX.sub(
             mention_clean(message.server),
-            self.bots[message.server.id].brain.generate())
+            generate_best_message(self.bots[message.server.id].brain))
 
     conf = self.command_config(message.server.id, 'antoinefromafar')
     username = conf.get('username')
