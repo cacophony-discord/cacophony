@@ -1,6 +1,7 @@
 import re
-import requests
 
+import aiofiles
+import requests
 
 from acapela_group.base import AcapelaGroupAsync, AcapelaGroupError
 
@@ -58,8 +59,9 @@ async def on_antoinefromafar(self, message, *args):
             voice_client = self.discord_client.voice_client_in(
                 message.server)
             self.debug("MP3 url: %s", mp3_url)
-            with open('/tmp/tmp.mp3', 'wb') as stream:
-                stream.write(requests.get(mp3_url).content)
+            async with aiofiles.open('/tmp/tmp.mp3', 'wb') as stream:
+                await stream.write(requests.get(mp3_url).content)
+                await stream.flush()
 
             voice = voice_client.create_ffmpeg_player('/tmp/tmp.mp3')
             voice.start()
