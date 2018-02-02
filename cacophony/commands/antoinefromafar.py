@@ -51,7 +51,7 @@ async def on_antoinefromafar(self, message, *args):
                 self.debug("Will authenticate with %s:%s", username, password)
                 await acapela.authenticate(username, password)
             mp3_url = await acapela.get_mp3_url(
-                'French (France)', 'Valentin (genuine child voice)',
+                'French (France)', 'AntoineFromAfar (genuine child voice)',
                 text_to_say)
     except AcapelaGroupError as err:
         self.warning("Could not get MP3 URL: %s", str(err))
