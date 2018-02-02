@@ -41,6 +41,7 @@ async def on_antoinefromafar(self, message, *args):
             mention_clean(message.server),
             generate_best_message(self.bots[message.server.id].brain))
 
+    self.debug("Will tts '%s'", text_to_say)
     conf = self.command_config(message.server.id, 'antoinefromafar')
     username = conf.get('username')
     password = conf.get('password')
@@ -50,7 +51,7 @@ async def on_antoinefromafar(self, message, *args):
                 self.debug("Will authenticate with %s:%s", username, password)
                 await acapela.authenticate(username, password)
             mp3_url = await acapela.get_mp3_url(
-                'French (France)', 'AntoineFromAfar (emotive voice)',
+                'French (France)', 'Valentin (genuine child voice)',
                 text_to_say)
     except AcapelaGroupError as err:
         self.warning("Could not get MP3 URL: %s", str(err))
