@@ -2,7 +2,7 @@ import re
 import requests
 
 
-from acapela_group.base import AcapelaGroup, AcapelaGroupError
+from acapela_group.base import AcapelaGroupAsync, AcapelaGroupError
 
 _MENTION_REGEX = re.compile(r'<@([0-9]+)>')
 _URL_FILTER = re.compile(r'(https?://[^ ]+|www\.[^ ]+)')
@@ -44,18 +44,19 @@ async def on_antoinefromafar(self, message, *args):
     username = conf.get('username')
     password = conf.get('password')
     try:
-        acapela = AcapelaGroup()
-        if username is not None and password is not None:
-            self.debug("Will authenticate with %s:%s", username, password)
-            acapela.authenticate(username, password)
-        mp3_url = acapela.get_mp3_url('French (France)',
-                                      'AntoineFromAfar (emotive voice)',
-                                      text_to_say)
+        async with AcapelaGroupAsync() as acapela:
+            if username is not None and password is not None:
+                self.debug("Will authenticate with %s:%s", username, password)
+                await acapela.authenticate(username, password)
+            mp3_url = await acapela.get_mp3_url(
+                'French (France)', 'AntoineFromAfar (emotive voice)',
+                text_to_say)
     except AcapelaGroupError as err:
         self.warning("Could not get MP3 URL: %s", str(err))
     else:
         if self.discord_client.is_voice_connected(message.server):
-            voice_client = self.discord_client.voice_client_in(message.server)
+            voice_client = self.discord_client.voice_client_in(
+                message.server)
             self.debug("MP3 url: %s", mp3_url)
             with open('/tmp/tmp.mp3', 'wb') as stream:
                 stream.write(requests.get(mp3_url).content)
