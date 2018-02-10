@@ -69,6 +69,10 @@ class CacophonyApplication(Application):
         """Return the configuration associated for `command` on `server_id`."""
         return self.conf['discord']['servers'][server_id]['commands'][command]
 
+    def get_hook_config(self, server_id, hook):
+        """Return the configuration associated for `hook` on `server_id`."""
+        return self.conf['discord']['servers'][server_id]['hooks'][hook]
+
     async def on_ready(self):
         self.info("Ready to roll!")
         self.info("Servers are:")
@@ -106,7 +110,7 @@ class CacophonyApplication(Application):
             self._schedule_jobs(server, discord_servers[server.id])
 
             # Load hooks if any
-            hooks = discord_servers[server.id].get('hooks', [])
+            hooks = discord_servers[server.id].get('hooks', {})
             self._load_hooks(server.id, hooks)
 
         await self.discord_client.change_presence(
@@ -146,9 +150,11 @@ class CacophonyApplication(Application):
             self.info("Load hook '%s' for server id '%s'", hook, server_id)
             module = importlib.import_module(".hooks.{}".format(hook),
                                              package="cacophony")
+            hook_config = self.get_hook_config(server_id, hook)
+            hooked_channels = hook_config.get('_channels', ['*'])
             # hookee represents the action being hooked (e.g. 'on_message')
             hookee, hook = module.load()
-            loaded_hooks[hookee].append(hook)
+            loaded_hooks[hookee].append((hook, hooked_channels))
         self.hooks[server_id] = loaded_hooks
 
     def _is_command_allowed(self, server_id, channel, command):
@@ -201,7 +207,9 @@ class CacophonyApplication(Application):
             return  # Nothing to do
 
         # Call hooks if any
-        for hook in self.hooks[server_id]['on_message']:
+        for (hook, channels) in self.hooks[server_id]['on_message']:
+            if '*' not in channels and message.channel.name not in channels:
+                continue  # Hook not configured for this channel
             if await hook(self, message):
                 continue  # The hook returned True. Continue
             else:
@@ -247,6 +255,9 @@ class CacophonyApplication(Application):
                                            answer)
             # Call hooks if any
             for hook in self.hooks[server_id]['on_answer']:
+                if '*' not in channels and \
+                        message.channel.name not in channels:
+                    continue  # Hook not configured for this channel
                 if await hook(self, answer):
                     continue  # The hook returned True. Continue
                 else:
@@ -258,8 +269,9 @@ class CacophonyApplication(Application):
         self.info("%s joined the server '%s'!",
                   member.nick, member.server.name)
         server_id = member.server.id
+
         # Call hooks if any
-        for hook in self.hooks[server_id]['on_member_join']:
+        for hook, channels in self.hooks[server_id]['on_member_join']:
             if await hook(self, member):
                 continue  # The hook returned True. Continue
             else:
