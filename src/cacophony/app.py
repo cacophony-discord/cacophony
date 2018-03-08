@@ -119,7 +119,7 @@ class CacophonyApplication(Application):
         """Load some specific coroutine jobs described in config."""
         jobs = server_config.get("jobs", list())
         for job in jobs:
-            module = importlib.import_module("jobs.{}".format(job),
+            module = importlib.import_module(".jobs.{}".format(job),
                                              package="cacophony")
             coroutine = module.load()
             self.info("Loaded job '%s'", job)
