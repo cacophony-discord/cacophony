@@ -254,7 +254,7 @@ class CacophonyApplication(Application):
                 answer = "<@{}> {}".format(message.author.id,
                                            answer)
             # Call hooks if any
-            for hook in self.hooks[server_id]['on_answer']:
+            for (hook, channels) in self.hooks[server_id]['on_answer']:
                 if '*' not in channels and \
                         message.channel.name not in channels:
                     continue  # Hook not configured for this channel
