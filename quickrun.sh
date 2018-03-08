@@ -6,4 +6,4 @@ else
   NAME=$1
 fi
 
-PYTHONPATH=.:$PYTHONPATH scripts/app.py $NAME
+PYTHONPATH=src:$PYTHONPATH scripts/app.py $NAME
