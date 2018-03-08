@@ -11,7 +11,6 @@ from setuptools import find_packages, setup
 
 
 INSTALL_REQUIRES = [
-    'aiofiles',
     'chattymarkov',
     'discord.py',
     'click',
