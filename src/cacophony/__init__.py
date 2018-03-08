@@ -2,9 +2,9 @@
 
 __version__ = "0.1.0"
 
-__title = "Cacophony"
+__title__ = "Cacophony"
 __name__ = "cacophony"
-__description = "Cacophony Discord bot."
+__description__ = "Cacophony Discord bot."
 
 __uri__ = "https://github.com/Ge0/cacophony"
 

@@ -3,7 +3,7 @@
 import asyncio
 from bsol.app import Application
 
-from cacophony import Cacophony
+from .base import Cacophony
 from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
 
@@ -119,7 +119,7 @@ class CacophonyApplication(Application):
         """Load some specific coroutine jobs described in config."""
         jobs = server_config.get("jobs", list())
         for job in jobs:
-            module = importlib.import_module(".jobs.{}".format(job),
+            module = importlib.import_module("jobs.{}".format(job),
                                              package="cacophony")
             coroutine = module.load()
             self.info("Loaded job '%s'", job)

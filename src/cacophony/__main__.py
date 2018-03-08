@@ -8,8 +8,8 @@ from .app import CacophonyApplication
 @click.argument('name')
 def main(name='cacophony'):
     """Instanciate an application, then run it."""
-    app = CacophonyApplication(name=name)
-    app.run()
+    application = CacophonyApplication(name=name)
+    application.run()
 
 
 if __name__ == "__main__":
