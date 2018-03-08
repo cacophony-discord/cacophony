@@ -6,4 +6,4 @@ else
   NAME=$1
 fi
 
-PYTHONPATH=src:$PYTHONPATH scripts/app.py $NAME
+PYTHONPATH=src:$PYTHONPATH python -m cacophony $NAME
