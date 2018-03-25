@@ -171,10 +171,7 @@ class CacophonyApplication(Application):
                          str(exn))
             return False
         else:
-            if '*' in channels or channel in channels:
-                return True
-            else:
-                return False
+            return '*' in channels or channel in channels
 
     async def on_message(self, message):
         self.info("%s %s %s: %s", message.server, message.channel,
