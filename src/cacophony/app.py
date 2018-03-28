@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 import asyncio
-from bsol.app import Application
 
-from .base import Cacophony
+from .base import Application, Cacophony
 from cacophony.models.base import Base as BaseModel
 from chattymarkov import ChattyMarkov
 
