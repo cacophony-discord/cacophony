@@ -9,7 +9,7 @@ def load_dict_config(dict_config):
     logging.config.dictConfig(dict_config)
 
 
-def load_default_config():
+def load_default_config(name='cacophony'):
     """Configure logging facility with basic configuration."""
     config_dict = {
         'version': 1,
@@ -32,7 +32,7 @@ def load_default_config():
             }
         },
         'loggers': {
-            'bsol': {
+            name: {
                 'level': 'DEBUG',
                 'handlers': ['console']
             }
