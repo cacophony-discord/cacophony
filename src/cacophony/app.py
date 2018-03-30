@@ -184,12 +184,6 @@ class CacophonyApplication(Application):
         except AttributeError:
             return
 
-        servers = self.conf['discord'].get('servers', {})
-        if server_id not in servers:
-            return  # Server not found in config
-
-        server_info = servers[server_id]
-
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
@@ -220,6 +214,12 @@ class CacophonyApplication(Application):
                 await self.callbacks[(command, server_id)](self,
                                                            message, *args)
             return
+
+        servers = self.conf['discord'].get('servers', {})
+        if server_id not in servers:
+            return  # Server not found in config
+
+        server_info = servers[server_id]
 
         bot = self.bots.get(server_id, None)
         if bot is None:
