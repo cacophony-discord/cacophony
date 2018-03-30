@@ -25,6 +25,11 @@ class CacophonyApplication(Application):
         self.hooks = {}
         self.callbacks = {}
         self.messages_queue = None
+        self.is_running = True
+
+        # Task handling the coroutine to process discord messages from a queue.
+        self.process_messages_task = None
+
         super().__init__(name=name, *args, **kwargs)
         self._init_cacophony_database()
 
@@ -260,7 +265,7 @@ class CacophonyApplication(Application):
                     continue  # The hook returned True. Continue
                 else:
                     return  # The hook return False. Do nothing else.
-            await self.messages_queue.put((message.channel, answer,))
+            await self.send_message(message.channel, answer)
 
     async def on_member_join(self, member):
         self.info("%s joined the server '%s'!",
@@ -298,17 +303,35 @@ class CacophonyApplication(Application):
         while True:
             channel, message = await self.messages_queue.get()
             await self.discord_client.send_message(channel, message)
+            self.messages_queue.task_done()
+
+
+    async def send_message(self,
+                           target,
+                           message: str) -> None:
+        """Send `message` to `channel`.
+
+        This method will just enqueue a tuple (`channel`, `message`) in the
+        messages to be sent.
+
+        Args:
+            target: The target to send the message to. It can be either a
+                discord channel or a discord user.
+            message: The message to send.
+        """
+        await self.messages_queue.put((target, message,))
 
     def run(self):
         self._load_opus()
         self.info(self.conf)
-        is_running = True
-        while is_running:
+        while self.is_running:
             try:
                 self.discord_client = discord.Client()
                 self.loop = asyncio.get_event_loop()
                 self.messages_queue = asyncio.Queue(loop=self.loop)
-                asyncio.ensure_future(self.process_messages(), loop=self.loop)
+                self.process_messages_task = \
+                    asyncio.ensure_future(self.process_messages(),
+                                          loop=self.loop)
 
                 discord_conf = self.conf.get('discord')
                 if discord_conf is None:
@@ -333,8 +356,9 @@ class CacophonyApplication(Application):
                     self.discord_client.start(*start_args))
             except KeyboardInterrupt:
                 self.info("Caught ^C signal.")
+                self.process_messages_task.cancel()
                 self.loop.run_until_complete(self.discord_client.logout())
-                is_running = False
+                self.is_running = False
             except Exception as exn:
                 self.info("Caught %s %s", type(exn), str(exn))
             finally:
@@ -345,8 +369,7 @@ class CacophonyApplication(Application):
 
 async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
-    await self.discord_client.send_message(message.channel,
-                                           '_Pong!_')
+    await self.send_message(message.channel, '_Pong!_')
 
 
 async def on_say(self, message, *args):
@@ -357,8 +380,7 @@ async def on_say(self, message, *args):
         self.logger.info("Unknown bot for server %s", message.server.id)
     else:
         if not bot.is_mute:
-            await self.discord_client.send_message(message.channel,
-                                                   ' '.join(args))
+            await self.send_message(message.channel, ' '.join(args))
 
 
 async def on_vjoin(self, message, *args):
@@ -372,11 +394,10 @@ async def on_vjoin(self, message, *args):
     if voice_channel is not None:
         # Join the channel the user is in
         await self.discord_client.join_voice_channel(voice_channel)
-        await self.discord_client.send_message(
-            message.channel,
-            "_Joined {}._".format(voice_channel))
+        await self.send_message(message.channel,
+                                f"_Joined {voice_channel}._")
     else:
-        await self.discord_client.send_message(
+        await self.send_message(
             message.channel,
             "_You must be in a voice channel so I can catch up with you._")
 
@@ -388,9 +409,9 @@ async def on_vquit(self, message, *args):
         voice_client = self.discord_client.voice_client_in(message.server)
         voice_channel = voice_client.channel
         await voice_client.disconnect()
-        await self.discord_client.send_message(
+        await self.send_message(
             message.channel,
-            "_Successfully disconnected from {}_".format(voice_channel))
+            f"_Successfully disconnected from {voice_channel}_")
 
 
 async def on_mute(self, message, *args):
@@ -399,12 +420,12 @@ async def on_mute(self, message, *args):
     bot = self.bots[message.server.id]
     if bot.is_mute:
         bot.unmute()
-        await self.discord_client.send_message(message.channel,
-                                               "_The bot is now unmute!_")
+        await self.send_message(message.channel,
+                                 "_The bot is now unmute!_")
     else:
         bot.mute()
-        await self.discord_client.send_message(message.channel,
-                                               "_The bot is now mute!_")
+        await self.send_message(message.channel,
+                                "_The bot is now mute!_")
 
 
 async def on_help(self, message, *args):
@@ -421,22 +442,22 @@ async def on_help(self, message, *args):
             callback = None
 
         if callback is None:
-            await self.discord_client.send_message(
+            await self.send_message(
                 message.author,
-                ("_Unknown command {}_. Type !help "
-                 "for more information.".format(sub_command)))
+                (f"_Unknown command {sub_command}_. Type !help "
+                 "for more information."))
             return
 
-        await self.discord_client.send_message(
+        await self.send_message(
             message.author,
-            "**{}**\n\n```{}```".format(sub_command, callback.__doc__))
+            f"**{sub_command}**\n\n```{callback.__doc__}```")
     else:
         output = "**Available commands:**\n\n"
         for ((command, server), cb) in self.callbacks.items():
             if server != '*' and message.server.id != server:
                 continue
             summary_doc, *_ = cb.__doc__.split('\n\n')
-            output += "**{}**: {}\n".format(command, summary_doc)
+            output += f"**{command}**: {summary_doc}\n"
         output += ("\nFor further help on any command,"
                    " type !help _command_ (Exemple: !help anim)")
-        await self.discord_client.send_message(message.author, output)
+        await self.send_message(message.author, output)
