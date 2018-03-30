@@ -36,15 +36,15 @@ class Application:
     def _reconfigure_logging(self):
         """Reconfigure logging according to application's config."""
         log_dict = self.conf.get('logging')
-        if log_dict:
+        if log_dict is not None:
             log.load_dict_config(log_dict)
             self.logger = log.get_logger(self.name)
 
     def _make_default_logger(self):
         """Private. Load a default configuration for bsol and return
         a default logger."""
-        log.load_default_config()
-        self.logger = log.get_logger('bsol')
+        log.load_default_config(self.name)
+        self.logger = log.get_logger(self.name)
 
     def _load_conf(self):
         """Private. Load the configuration from the profile's YAML file.
