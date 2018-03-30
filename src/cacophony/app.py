@@ -74,7 +74,7 @@ class CacophonyApplication(Application):
     async def on_ready(self):
         self.info("Ready to roll!")
         self.info("Servers are:")
-        discord_servers = self.conf['discord']['servers']
+        discord_servers = self.conf['discord'].get('servers', [])
         for server in self.discord_client.servers:
 
             self.info("- %s (ID: %s)", server, server.id)
