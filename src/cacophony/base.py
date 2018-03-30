@@ -4,10 +4,18 @@ import os
 from . import helpers, log
 
 
+class CacophonyError(Exception):
+    """Base exception class for cacophony related errors."""
+
+
+class ProfileNotFoundError(CacophonyError):
+    """Exception thrown when the profile's configuration is not found."""
+
+
 class Application:
     """Base application class."""
 
-    def __init__(self, logger=None, name="bsol", load_conf=True,
+    def __init__(self, logger=None, name="cacophony", load_conf=True,
                  *args, **kwargs):
         """Construct an application class."""
 
@@ -39,20 +47,29 @@ class Application:
         self.logger = log.get_logger('bsol')
 
     def _load_conf(self):
+        """Private. Load the configuration from the profile's YAML file.
+
+        Raises:
+            ProfileNotFoundError: The configuration file according to the
+                application's name has not been found.
+
+        """
         base_dir = os.path.join(self.base_dir, self.name)
 
         if not os.path.exists(base_dir):
-            self.info("Directory {} does not exist. Creating it...".format(
-                base_dir))
-            os.makedirs(base_dir)
-            return  # No config at all
+            raise ProfileNotFoundError(
+                f"The profile '{self.name}' could not be found. Create it "
+                f"by launching 'cacophony create --profile {self.name}'")
 
         self.info("Will load config from %s...", base_dir)
         try:
             self.conf = helpers.load_yaml_file(
                 os.path.join(base_dir, "config.yml"))
         except FileNotFoundError:
-            self.warning("Config file was not found. Skipping...")
+            raise ProfileNotFoundError(
+                "Could not file 'config.yml' file into profile "
+                f"'{self.name}'. You can re-create the config file "
+                f"by launching 'cacophony create --profile {self.name}'")
 
     def run(self):
         """Run the application."""
