@@ -184,10 +184,11 @@ class CacophonyApplication(Application):
         except AttributeError:
             return
 
-        if server_id not in self.conf['discord']['servers']:
+        servers = self.conf['discord'].get('servers', {})
+        if server_id not in servers:
             return  # Server not found in config
 
-        server_info = self.conf['discord']['servers'][server_id]
+        server_info = servers[server_id]
 
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
@@ -196,13 +197,9 @@ class CacophonyApplication(Application):
         if message.channel.name.startswith('Direct'):
             return  # No direct messages.
 
-        bot = self.bots.get(server_id, None)
-        if bot is None:
-            self.warning("Bot instance is 'None'")
-            return  # Nothing to do
-
         # Call hooks if any
-        for (hook, channels) in self.hooks[server_id]['on_message']:
+        hooks = self.hooks.get(server_id, {})
+        for (hook, channels) in hooks.get('on_message', {}):
             if '*' not in channels and message.channel.name not in channels:
                 continue  # Hook not configured for this channel
             if await hook(self, message):
@@ -223,6 +220,11 @@ class CacophonyApplication(Application):
                 await self.callbacks[(command, server_id)](self,
                                                            message, *args)
             return
+
+        bot = self.bots.get(server_id, None)
+        if bot is None:
+            self.warning("Bot instance is 'None'")
+            return  # Nothing to do
 
         # Learn what has been told
         bot.brain.learn(message_content)
