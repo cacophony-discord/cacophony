@@ -39,3 +39,11 @@ Then go to `~/.config/cacophony-discord/mybot/config.yml` and replace the
 `MY_TOKEN_HERE` string by your token.
 
 Congratulations, you're all set!
+
+
+Contribute
+----------
+
+You can join cacophony's discord server at https://discord.gg/G9xM8ux
+
+Also, for any question as regard the bot, feel free to reach me on Ge0#1974.
