@@ -64,7 +64,7 @@ def create(profile: str, *args, **kwargs) -> None:
     config_path = base_dir / 'config.yml'
     default_content = (
         "discord:\n"
-        "\ntoken: YOUR_TOKEN_HERE\n")
+        "    token: YOUR_TOKEN_HERE\n")
     with open(config_path, "w") as stream:
         n = stream.write(default_content)
         click.secho(f"[*] Written {n} bytes in 'config.yml'", fg='green',
