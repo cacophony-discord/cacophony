@@ -1,6 +1,4 @@
-"""
-bsol helpers.
-"""
+"""Cacophony helpers."""
 import os
 
 import yaml

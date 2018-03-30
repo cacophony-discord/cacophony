@@ -1,6 +1,4 @@
-"""
-bsol log facilities
-"""
+"""Cacophony logging facilities."""
 import logging
 import logging.config
 
