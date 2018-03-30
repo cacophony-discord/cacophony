@@ -24,6 +24,7 @@ class CacophonyApplication(Application):
         self._session_maker = None  # Session maker to the database
         self.hooks = {}
         self.callbacks = {}
+        self.messages_queue = None
         super().__init__(name=name, *args, **kwargs)
         self._init_cacophony_database()
 
@@ -259,8 +260,7 @@ class CacophonyApplication(Application):
                     continue  # The hook returned True. Continue
                 else:
                     return  # The hook return False. Do nothing else.
-            await self.discord_client.send_message(message.channel,
-                                                   answer)
+            await self.messages_queue.put((message.channel, answer,))
 
     async def on_member_join(self, member):
         self.info("%s joined the server '%s'!",
@@ -292,6 +292,13 @@ class CacophonyApplication(Application):
         self.callbacks[('!vjoin', '*')] = on_vjoin
         self.callbacks[('!vquit', '*')] = on_vquit
 
+    async def process_messages(self):
+        """Process messages to send by checking `self.messages_queue`."""
+        self.info("process_messages() coroutine started!")
+        while True:
+            channel, message = await self.messages_queue.get()
+            await self.discord_client.send_message(channel, message)
+
     def run(self):
         self._load_opus()
         self.info(self.conf)
@@ -300,6 +307,9 @@ class CacophonyApplication(Application):
             try:
                 self.discord_client = discord.Client()
                 self.loop = asyncio.get_event_loop()
+                self.messages_queue = asyncio.Queue(loop=self.loop)
+                asyncio.ensure_future(self.process_messages(), loop=self.loop)
+
                 discord_conf = self.conf.get('discord')
                 if discord_conf is None:
                     self.error("Discord configuration is absent. Quitting...")
