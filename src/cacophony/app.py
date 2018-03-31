@@ -190,6 +190,7 @@ class CacophonyApplication(Application):
         except AttributeError:
             return
 
+        # Discard every messages sent by the bot itself.
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
