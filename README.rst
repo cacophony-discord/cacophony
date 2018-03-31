@@ -47,3 +47,14 @@ Contribute
 You can join cacophony's discord server at https://discord.gg/G9xM8ux
 
 Also, for any question as regard the bot, feel free to reach me on Ge0#1974.
+
+
+Roadmap
+-------
+
+- Add an automatic linter (flake8, isort).
+- Write tests.
+- Define a first plug-in architecture.
+- Rewrite documentation.
+- Lots of refactoring...
+- Move chatty feature in an external plug-in.
