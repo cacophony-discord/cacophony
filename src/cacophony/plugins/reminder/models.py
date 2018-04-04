@@ -1,9 +1,11 @@
 import datetime
+
 from sqlalchemy import Column, DateTime, Integer, String
-from .base import Base
+
+from cacophony import models
 
 
-class Remind(Base):
+class Remind(models.Model):
     __tablename__ = "cacophony_remind"
 
     id = Column(Integer, primary_key=True)
@@ -15,7 +17,7 @@ class Remind(Base):
 
     def __repr__(self):
         return ("<Remind(id='{}', server_id='{}', author_id='{}', "
-                "reminder_datetime='{}', description='{}'>".format(
+                "reminder_datetime='{}', description='{}')>".format(
                     self.id, self.server_id, self.author_id,
                     self.reminder_datetime, self.description))
 

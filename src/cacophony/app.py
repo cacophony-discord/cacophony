@@ -3,7 +3,7 @@
 import asyncio
 
 from .base import Application, Cacophony
-from cacophony.models.base import Base as BaseModel
+from .models import Model
 from chattymarkov import ChattyMarkov
 
 from collections import defaultdict
@@ -31,23 +31,32 @@ class CacophonyApplication(Application):
         self.process_messages_task = None
 
         super().__init__(name=name, *args, **kwargs)
+        self._load_plugins()
         self._init_cacophony_database()
 
     @property
     def database(self):
         return self._cacophony_db
 
+    def _load_plugins(self):
+        """Private. Load plugins referenced in the configuration.
+
+        The plugins must be located in cacophony.plugins submodule.
+
+        """
+        plugins = self.conf.get('plugins', [])
+        for plugin in plugins:
+            self.info("Load plugin '%s'.", plugin)
+            try:
+                module = importlib.import_module(f".plugins.{plugin}",
+                                                 package="cacophony")
+            except ModuleNotFoundError:
+                self.warning("Could not find plugin '%s'. Skipping...", plugin)
+
     def create_database_session(self):
         if self._session_maker is None:
             return  # cannot create session
         return self._session_maker()
-
-    def _check_discord_config(self):
-        if 'discord' not in self.conf and \
-                'email' not in self.conf['discord'] and \
-                'password' not in self.conf['discord']:
-            self.error("Please configure your discord credentials.")
-            raise SystemExit(-1)
 
     def _init_cacophony_database(self):
         if 'databases' in self.conf:
@@ -71,16 +80,16 @@ class CacophonyApplication(Application):
 
     def command_config(self, server_id, command):
         """Return the configuration associated for `command` on `server_id`."""
-        return self.conf['discord']['servers'][server_id]['commands'][command]
+        return self.conf['servers'][server_id]['commands'][command]
 
     def get_hook_config(self, server_id, hook):
         """Return the configuration associated for `hook` on `server_id`."""
-        return self.conf['discord']['servers'][server_id]['hooks'][hook]
+        return self.conf['servers'][server_id]['hooks'][hook]
 
     async def on_ready(self):
         self.info("Ready to roll!")
         self.info("Servers are:")
-        discord_servers = self.conf['discord'].get('servers', [])
+        discord_servers = self.conf.get('servers', [])
         for server in self.discord_client.servers:
 
             self.info("- %s (ID: %s)", server, server.id)
@@ -169,7 +178,7 @@ class CacophonyApplication(Application):
         # Strip the '!'
         command = command[1:]
         try:
-            channels = self.conf['discord']['servers'][server_id][
+            channels = self.conf['servers'][server_id][
                     'commands'][command]['_channels']
         except KeyError as exn:
             self.warning("KeyError caught in is_command_allowed: %s",
@@ -222,7 +231,7 @@ class CacophonyApplication(Application):
                                                            message, *args)
             return
 
-        servers = self.conf['discord'].get('servers', {})
+        servers = self.conf.get('servers', {})
         if server_id not in servers:
             return  # Server not found in config
 
@@ -334,27 +343,16 @@ class CacophonyApplication(Application):
                     asyncio.ensure_future(self.process_messages(),
                                           loop=self.loop)
 
-                discord_conf = self.conf.get('discord')
-                if discord_conf is None:
-                    self.error("Discord configuration is absent. Quitting...")
-                    raise SystemExit(-1)
-
-                token = discord_conf.get('token')
-                if token is not None:
-                    start_args = [token]
+                token = self.conf.get('token', '')
+                if token:
                     self.debug("Will log using token '%s'", token)
                 else:
-                    start_args = [discord_conf.get('email'),
-                                  discord_conf.get('password')]
-
-                    self.debug("Will log with %s:%s",
-                               self.conf['discord']['email'],
-                               self.conf['discord']['password'])
+                    self.critical("Error: no token found in configuration. "
+                                  "Exiting...")
+                    raise SystemExit(-1)
                 self.register_discord_callbacks()
 
-                self.info("Args are: %s", start_args)
-                self.loop.run_until_complete(
-                    self.discord_client.start(*start_args))
+                self.loop.run_until_complete(self.discord_client.start(token))
             except KeyboardInterrupt:
                 self.info("Caught ^C signal.")
                 self.process_messages_task.cancel()
