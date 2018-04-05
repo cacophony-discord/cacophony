@@ -29,6 +29,7 @@ class CacophonyApplication(Application):
 
         # Task handling the coroutine to process discord messages from a queue.
         self.process_messages_task = None
+        self._plugins_coroutines = []
 
         super().__init__(name=name, *args, **kwargs)
         self._load_plugins()
@@ -50,8 +51,38 @@ class CacophonyApplication(Application):
             try:
                 module = importlib.import_module(f".plugins.{plugin}",
                                                  package="cacophony")
-            except ModuleNotFoundError:
-                self.warning("Could not find plugin '%s'. Skipping...", plugin)
+            except ModuleNotFoundError as exn:
+                self.error("Could not load plugin '%s': '%s'",
+                           plugin, exn)
+            else:
+                if hasattr(module, 'coroutines'):
+                    self._schedule_module_coroutines(module)
+
+    def _schedule_module_coroutines(self, module):
+        """Private. Schedule coroutines listed in `module`.
+
+        The `module` object has an attribute named `coroutines` that should be
+        a set of coroutines to schedule to the main loop.
+
+        Args:
+            module: The module to schedule the coroutines from.
+
+        """
+        for coro in module.coroutines:
+            self.info("Schedule coroutine %s", coro.__name__)
+            asyncio.ensure_future(coro(self), loop=self.loop)
+
+    def _cancel_plugins_coroutines(self):
+        """Private. Cancel coroutines loaded through plugins.
+
+        The coroutines loaded through plugins are stored in the
+        `_plugins_coroutines` instance member. Those are actually tasks
+        that will be cancelled.
+
+        """
+        for task in self._plugins_coroutines:
+            self.debug("Cancel task '%s'.", task)
+            task.cancel()
 
     def create_database_session(self):
         if self._session_maker is None:
@@ -71,7 +102,7 @@ class CacophonyApplication(Application):
         if db_config.get('type', '') == 'SQLITE_FILE':
             self._cacophony_db = sqlalchemy.create_engine(
                 'sqlite:///{}'.format(db_config.get('path', ':memory:')))
-            BaseModel.metadata.create_all(self._cacophony_db)
+            Model.metadata.create_all(self._cacophony_db)
             self._session_maker = sqlalchemy.orm.sessionmaker()
             self._session_maker.configure(bind=self._cacophony_db)
 
@@ -315,7 +346,6 @@ class CacophonyApplication(Application):
             await self.discord_client.send_message(channel, message)
             self.messages_queue.task_done()
 
-
     async def send_message(self,
                            target,
                            message: str) -> None:
@@ -420,7 +450,7 @@ async def on_mute(self, message, *args):
     if bot.is_mute:
         bot.unmute()
         await self.send_message(message.channel,
-                                 "_The bot is now unmute!_")
+                                "_The bot is now unmute!_")
     else:
         bot.mute()
         await self.send_message(message.channel,

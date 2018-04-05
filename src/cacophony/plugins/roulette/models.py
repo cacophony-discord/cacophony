@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer
-from .base import Base
+from cacophony import models
 
 
-class RoulettePlayer(Base):
+class RoulettePlayer(models.Model):
     __tablename__ = "cacophony_roulette_player"
 
     id = Column(Integer, primary_key=True)
