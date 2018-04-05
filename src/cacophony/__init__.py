@@ -6,7 +6,7 @@ __title__ = "Cacophony"
 __name__ = "cacophony"
 __description__ = "Cacophony Discord bot."
 
-__uri__ = "https://github.com/Ge0/cacophony"
+__uri__ = "https://github.com/cacophony-discord/cacophony"
 
 __author__ = "Geoffrey ROYER"
 __email__ = "geoffrey.royer@gmail.com"
