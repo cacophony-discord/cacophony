@@ -3,7 +3,7 @@ from .coroutines import reminder
 
 
 commands = {
-    'remind': on_remind
+    'remind': [on_remind]
 }
 
 coroutines = [reminder]
