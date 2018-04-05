@@ -30,6 +30,7 @@ class CacophonyApplication(Application):
         # Task handling the coroutine to process discord messages from a queue.
         self.process_messages_task = None
         self._plugins_coroutines = []
+        self._commands_handlers = defaultdict(list)
 
         super().__init__(name=name, *args, **kwargs)
         self._load_plugins()
@@ -57,6 +58,8 @@ class CacophonyApplication(Application):
             else:
                 if hasattr(module, 'coroutines'):
                     self._schedule_module_coroutines(module)
+                if hasattr(module, 'commands'):
+                    self._add_command_handlers(module)
 
     def _schedule_module_coroutines(self, module):
         """Private. Schedule coroutines listed in `module`.
@@ -71,6 +74,26 @@ class CacophonyApplication(Application):
         for coro in module.coroutines:
             self.info("Schedule coroutine %s", coro.__name__)
             asyncio.ensure_future(coro(self), loop=self.loop)
+
+    def _add_command_handlers(self, module):
+        """Private. Add command handlers from `module`.
+
+        The `module` object should have an attribute whose name is `commands`.
+        This attribute should be a dictionary whose keys are strings
+        referring to the commands without prefix, and whose values should be
+        sets of handlers to call upon command execution.
+
+        There can be several handlers for the command. The priority call for
+        those handlers are described as plugin loading order, then handler
+        order in the dictionary's values.
+
+        Args:
+            module: The module to load the commands from.
+
+        """
+        for command, handlers in module.commands:
+            self.info("Add handlers for '%s'", command)
+            self._commands_handlers[command] += handlers
 
     def _cancel_plugins_coroutines(self):
         """Private. Cancel coroutines loaded through plugins.
