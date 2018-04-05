@@ -31,8 +31,10 @@ class CacophonyApplication(Application):
         self.process_messages_task = None
         self._plugins_coroutines = []
         self._commands_handlers = defaultdict(list)
+        self._command_prefix = None
 
         super().__init__(name=name, *args, **kwargs)
+        self._configure_bot()
         self._load_plugins()
         self._init_cacophony_database()
 
@@ -91,7 +93,7 @@ class CacophonyApplication(Application):
             module: The module to load the commands from.
 
         """
-        for command, handlers in module.commands:
+        for command, handlers in module.commands.items():
             self.info("Add handlers for '%s'", command)
             self._commands_handlers[command] += handlers
 
@@ -106,6 +108,11 @@ class CacophonyApplication(Application):
         for task in self._plugins_coroutines:
             self.debug("Cancel task '%s'.", task)
             task.cancel()
+
+    def _configure_bot(self):
+        """Private. Set main configuration for the bot."""
+        self._command_prefix = self.conf.get('command_prefix', '!')
+
 
     def create_database_session(self):
         if self._session_maker is None:
@@ -128,6 +135,22 @@ class CacophonyApplication(Application):
             Model.metadata.create_all(self._cacophony_db)
             self._session_maker = sqlalchemy.orm.sessionmaker()
             self._session_maker.configure(bind=self._cacophony_db)
+
+    def prefixize(self, command_name: str) -> str:
+        """Prefixize `command_name` with the command prefix.
+        
+        Args:
+            command_name: The command name to prefix.
+
+        Example:
+            If the command name is "say" and the prefix is "!", then the
+            method will return "!say".
+
+        Returns:
+            The prefixized command name.
+
+        """
+        return f'{self._command_prefix}{command_name}'
 
     def build_brain(self, brain_string):
         return ChattyMarkov(brain_string)
