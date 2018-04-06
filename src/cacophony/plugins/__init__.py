@@ -12,5 +12,7 @@ A plugin may export several components:
         order not to collide with 'commands' that refers to the bot commands
         executable by the users on the discord. The operations refers to
         cli (Command Line Interface) custom sub-commands.
+  - Models: those are sqlalchemy models to represent data stored into
+        cacophony's database.
 
 """
