@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import pkg_resources
 
 from .base import Application, Cacophony
 from .models import Model
@@ -48,12 +49,10 @@ class CacophonyApplication(Application):
         The plugins must be located in cacophony.plugins submodule.
 
         """
-        plugins = self.conf.get('plugins', [])
-        for plugin in plugins:
-            self.info("Load plugin '%s'.", plugin)
+        for plugin in pkg_resources.iter_entry_points('cacophony.plugins'):
+            self.info("Load plugin '%s'.", plugin.name)
             try:
-                module = importlib.import_module(f".plugins.{plugin}",
-                                                 package="cacophony")
+                module = plugin.load()
             except ModuleNotFoundError as exn:
                 self.error("Could not load plugin '%s': '%s'",
                            plugin, exn)
@@ -306,8 +305,6 @@ class CacophonyApplication(Application):
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
-
-        # TODO: Handle commands?
 
         # TODO: call hooks?
 
