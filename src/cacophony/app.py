@@ -152,6 +152,22 @@ class CacophonyApplication(Application):
         """
         return f'{self._command_prefix}{command_name}'
 
+    def unprefixize(self, command_name):
+        """Unprefixize `command_name` by removing its prefix.
+
+        Args:
+            command_name: The command name to remove the prefix from.
+
+        Example:
+            If the command name is "!say" and the prefix is "!", then the
+                method will return "say".
+
+        Returns:
+            The unprefixized, real command name.
+
+        """
+        return command_name.lstrip(self._command_prefix)
+
     def build_brain(self, brain_string):
         return ChattyMarkov(brain_string)
 
@@ -247,112 +263,63 @@ class CacophonyApplication(Application):
             loaded_hooks[hookee].append((hook, hooked_channels))
         self.hooks[server_id] = loaded_hooks
 
-    def _is_command_allowed(self, server_id, channel, command):
-        """Check wether a command can be executed on some channel."""
-        if (command, '*') in self.callbacks:
-            return True  # Generic commands are always allowed
-
-        # Strip the '!'
-        command = command[1:]
-        try:
-            channels = self.conf['servers'][server_id][
-                    'commands'][command]['_channels']
-        except KeyError as exn:
-            self.warning("KeyError caught in is_command_allowed: %s",
-                         str(exn))
-            return False
-        else:
-            return '*' in channels or channel in channels
-
+    def _is_command_allowed(self,
+                            server_id: str,
+                            channel: str,
+                            command: str) -> bool:
+        """Private. Check whether `command` can be executed or not.
+        
+        This function is called once `command` has been summoned on discord
+        whose server id is `server_id` and channel is `channel`.
+        
+        Args:
+            server_id: The id from the discord server where the command has
+                been summoned.
+            channel: The channel where the discord channel has been summoned.
+            command: The command that has been summoned.
+            
+        Returns:
+            True if the command can be executed, False otherwise.
+            
+        """
+        # XXX: Redefine permissions/configuration
+        return command in self._commands_handlers
+        
     async def on_message(self, message):
         self.info("%s %s %s: %s", message.server, message.channel,
                   message.author, message.content)
 
         message_content = message.content
 
-        # How to handle private messages properly? Type attribute maybe.
+        # Discard every messages sent by the bot itself.
+        if message.author.id == self.discord_client.user.id:
+            self.info("Do not handle self messages.")
+            return  # Do not handle self messages
+
+        # XXX: How to handle private messages properly? Type attribute maybe.
         try:
             server_id = message.server.id
         except AttributeError:
-            return
+            server_id = ''
 
         # Discard every messages sent by the bot itself.
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
 
-        if message.channel.name.startswith('Direct'):
-            return  # No direct messages.
+        # TODO: Handle commands?
 
-        # Call hooks if any
-        hooks = self.hooks.get(server_id, {})
-        for (hook, channels) in hooks.get('on_message', {}):
-            if '*' not in channels and message.channel.name not in channels:
-                continue  # Hook not configured for this channel
-            if await hook(self, message):
-                continue  # The hook returned True. Continue
-            else:
-                return  # The hook return False. Do nothing else.
+        # TODO: call hooks?
 
-        if message_content.startswith('!'):
+        if message_content.startswith(self._command_prefix):
             command, *args = message.content.split(' ')
-            if not self._is_command_allowed(server_id,
-                                            message.channel.name,
-                                            command):
-                return
-
-            if (command, '*') in self.callbacks:
-                await self.callbacks[(command, '*')](self, message, *args)
-            elif (command, server_id) in self.callbacks:
-                await self.callbacks[(command, server_id)](self,
-                                                           message, *args)
-            return
-
-        servers = self.conf.get('servers', {})
-        if server_id not in servers:
-            return  # Server not found in config
-
-        server_info = servers[server_id]
-
-        bot = self.bots.get(server_id, None)
-        if bot is None:
-            self.warning("Bot instance is 'None'")
-            return  # Nothing to do
-
-        # Learn what has been told
-        bot.brain.learn(message_content)
-
-        if bot.is_mute:
-            self.warning("Bot is mute!")
-            return  # Nothing to answer
-
-        if message.channel.name not in bot.channels:
-            self.warning("Not allowed to answer in this channel! "
-                         "Allowed channels are %s", bot.channels)
-            return  # Not allowed to speak on this channel
-
-        local_nickname = server_info["nickname"]
-        mentioned = local_nickname.lower() in message_content.lower() or \
-            self.discord_client.user in message.mentions
-
-        will_answer = random.random() < bot.chattyness or mentioned
-
-        if will_answer:
-            self.info("Will answer.")
-            answer = bot.brain.generate()
-            if mentioned:
-                answer = "<@{}> {}".format(message.author.id,
-                                           answer)
-            # Call hooks if any
-            for (hook, channels) in self.hooks[server_id]['on_answer']:
-                if '*' not in channels and \
-                        message.channel.name not in channels:
-                    continue  # Hook not configured for this channel
-                if await hook(self, answer):
-                    continue  # The hook returned True. Continue
-                else:
-                    return  # The hook return False. Do nothing else.
-            await self.send_message(message.channel, answer)
+            command = self.unprefixize(command)
+            if self._is_command_allowed(server_id,
+                                        message.channel.name,
+                                        command):
+                # Call every registered command handlers
+                for handler in self._commands_handlers[command]:
+                    await handler(self, message, *args)
 
     async def on_member_join(self, member):
         self.info("%s joined the server '%s'!",
