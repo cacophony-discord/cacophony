@@ -2,14 +2,13 @@
 
 import asyncio
 
-from .base import Application, Cacophony
+from .base import Application, Cacophony, Plugin
 from .models import Model
 from chattymarkov import ChattyMarkov
 
 from collections import defaultdict
 import discord
 import importlib
-import random
 import sqlalchemy
 
 
@@ -29,20 +28,33 @@ class CacophonyApplication(Application):
 
         # Task handling the coroutine to process discord messages from a queue.
         self.process_messages_task = None
+
+        # Loaded plugins:
+        self._plugins = defaultdict(str)
         self._plugins_coroutines = []
         self._commands_handlers = defaultdict(list)
         self._command_prefix = None
 
         super().__init__(name=name, *args, **kwargs)
         self._configure_bot()
-        self._load_plugins()
         self._init_cacophony_database()
 
     @property
     def database(self):
         return self._cacophony_db
 
-    def _load_plugins(self):
+    @property
+    def plugins(self) -> defaultdict(str):
+        """Get the loaded plugins."""
+        return self._plugins
+
+    @property
+    def servers(self):
+        """Get the discord servers the bot is connected to. If the bot is
+        not connected yet, then this property should not be used."""
+        return self.discord_client.servers
+
+    async def _load_plugins(self):
         """Private. Load plugins referenced in the configuration.
 
         The plugins must be located in cacophony.plugins submodule.
@@ -58,6 +70,16 @@ class CacophonyApplication(Application):
                 self.error("Could not load plugin '%s': '%s'",
                            plugin, exn)
             else:
+
+                # Instantiate the plugin
+                if hasattr(module, 'plugin_class'):
+                    self._plugins[plugin] = plugin.plugin_class(self)
+                else:
+                    self._plugins[plugin] = Plugin(self)
+
+                # Call the plugin 'on_load' hook
+                await self._plugins[plugin].on_load()
+
                 if hasattr(module, 'coroutines'):
                     self._schedule_module_coroutines(module)
                 if hasattr(module, 'commands'):
@@ -113,7 +135,6 @@ class CacophonyApplication(Application):
         """Private. Set main configuration for the bot."""
         self._command_prefix = self.conf.get('command_prefix', '!')
 
-
     def create_database_session(self):
         if self._session_maker is None:
             return  # cannot create session
@@ -138,7 +159,7 @@ class CacophonyApplication(Application):
 
     def prefixize(self, command_name: str) -> str:
         """Prefixize `command_name` with the command prefix.
-        
+
         Args:
             command_name: The command name to prefix.
 
@@ -180,7 +201,12 @@ class CacophonyApplication(Application):
         return self.conf['servers'][server_id]['hooks'][hook]
 
     async def on_ready(self):
-        self.info("Ready to roll!")
+        self.info("Cacophony bot ready.")
+
+        # Notify plugins that the server is ready.
+        for plugin in self._plugins.values():
+            await plugin.on_ready()
+
         self.info("Servers are:")
         discord_servers = self.conf.get('servers', [])
         for server in self.discord_client.servers:
@@ -268,23 +294,23 @@ class CacophonyApplication(Application):
                             channel: str,
                             command: str) -> bool:
         """Private. Check whether `command` can be executed or not.
-        
+
         This function is called once `command` has been summoned on discord
         whose server id is `server_id` and channel is `channel`.
-        
+
         Args:
             server_id: The id from the discord server where the command has
                 been summoned.
             channel: The channel where the discord channel has been summoned.
             command: The command that has been summoned.
-            
+
         Returns:
             True if the command can be executed, False otherwise.
-            
+
         """
         # XXX: Redefine permissions/configuration
         return command in self._commands_handlers
-        
+
     async def on_message(self, message):
         self.info("%s %s %s: %s", message.server, message.channel,
                   message.author, message.content)
@@ -374,13 +400,13 @@ class CacophonyApplication(Application):
         """
         await self.messages_queue.put((target, message,))
 
-    def run(self):
+    async def _async_run(self):
         self._load_opus()
+        await self._load_plugins()
         self.info(self.conf)
         while self.is_running:
             try:
                 self.discord_client = discord.Client()
-                self.loop = asyncio.get_event_loop()
                 self.messages_queue = asyncio.Queue(loop=self.loop)
                 self.process_messages_task = \
                     asyncio.ensure_future(self.process_messages(),
@@ -394,8 +420,7 @@ class CacophonyApplication(Application):
                                   "Exiting...")
                     raise SystemExit(-1)
                 self.register_discord_callbacks()
-
-                self.loop.run_until_complete(self.discord_client.start(token))
+                await self.discord_client.start(token)
             except KeyboardInterrupt:
                 self.info("Caught ^C signal.")
                 self.process_messages_task.cancel()
@@ -405,6 +430,10 @@ class CacophonyApplication(Application):
                 self.info("Caught %s %s", type(exn), str(exn))
             finally:
                 self.info("Terminating...")
+
+    def run(self):
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self._async_run())
         self.loop.close()
         raise SystemExit(0)
 

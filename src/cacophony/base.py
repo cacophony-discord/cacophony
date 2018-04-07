@@ -94,6 +94,30 @@ class Application:
         """Wrapper around self.logger.error(...)"""
 
 
+class Plugin:
+    """Base class for cacophony plugins."""
+
+    def __init__(self, bot, *args, **kwargs):
+        """Instantiate a plug-in being loaded by `bot`.
+
+        Args:
+            bot: The bot loading the plugin.
+
+        """
+        self._bot = bot
+
+    @property
+    def bot(self):
+        """Return the bot instance."""
+        return self._bot
+
+    async def on_load(self):
+        """Hook called when the plugin is being loaded."""
+
+    async def on_ready(self):
+        """Hook called when the bot is ready to deal with discord servers."""
+
+
 class Cacophony:
     def __init__(self, logger, name, markov_brain, channels=None,
                  chattyness=0.1, *args, **kwargs):
