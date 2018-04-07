@@ -73,7 +73,7 @@ class CacophonyApplication(Application):
 
                 # Instantiate the plugin
                 if hasattr(module, 'plugin_class'):
-                    self._plugins[plugin] = plugin.plugin_class(self)
+                    self._plugins[plugin] = module.plugin_class(self)
                 else:
                     self._plugins[plugin] = Plugin(self)
 
