@@ -20,7 +20,7 @@ Then `cd` into the directory and setup the bot:
 .. code-block:: bash
 
     cd cacophony
-    python setup.py install
+    pip install -e .
 
 
 On discord, create a new app here:
