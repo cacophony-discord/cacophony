@@ -1,7 +1,14 @@
 """Cacophony base classes."""
+from enum import Enum
 import os
 
 from . import helpers, log
+
+
+class Hook(Enum):
+    """Describe different hook kinds for cacophony."""
+    ON_MESSAGE = 1
+    ON_ANSWER = 2
 
 
 class CacophonyError(Exception):

@@ -2,7 +2,7 @@
 
 import asyncio
 
-from .base import Application, Cacophony, Plugin
+from .base import Application, Cacophony, Hook, Plugin
 from .models import Model
 from chattymarkov import ChattyMarkov
 
@@ -15,12 +15,16 @@ import sqlalchemy
 class CacophonyApplication(Application):
     """Application class."""
 
-    def __init__(self, name='cacophony', *args, **kwargs):
+    def __init__(self, name='cacophony', db_path=':memory', *args, **kwargs):
         self.discord_client = None  # Discord link
         self.loop = None  # asyncio loop
         self.bots = {}  # Key is discord server, value is bot instance
-        self._cacophony_db = None  # Cacophony relational database
-        self._session_maker = None  # Session maker to the database
+
+        # Database related attributes:
+        self._db = None  # Cacophony relational database
+        self._db_session_maker = None  # Session maker to the database
+
+        # Bot related attributes:
         self.hooks = {}
         self.callbacks = {}
         self.messages_queue = None
@@ -33,15 +37,12 @@ class CacophonyApplication(Application):
         self._plugins = defaultdict(str)
         self._plugins_coroutines = []
         self._commands_handlers = defaultdict(list)
+        self._hooks = defaultdict(list)
         self._command_prefix = None
 
         super().__init__(name=name, *args, **kwargs)
         self._configure_bot()
-        self._init_cacophony_database()
-
-    @property
-    def database(self):
-        return self._cacophony_db
+        self._init_database(db_path)
 
     @property
     def plugins(self) -> defaultdict(str):
@@ -84,6 +85,8 @@ class CacophonyApplication(Application):
                     self._schedule_module_coroutines(module)
                 if hasattr(module, 'commands'):
                     self._add_command_handlers(module)
+                if hasattr(module, 'hooks'):
+                    self._register_hooks(module)
 
     def _schedule_module_coroutines(self, module):
         """Private. Schedule coroutines listed in `module`.
@@ -119,6 +122,21 @@ class CacophonyApplication(Application):
             self.info("Add handlers for '%s'", command)
             self._commands_handlers[command] += handlers
 
+    def _register_hooks(self, module):
+        """Private. Register hooks exported by `module`.
+
+        Each module can export, for each existing event, a list of hooks
+        to be called upon trigerred event. For a complete list of supported
+        hooks, see base.py.
+
+        Args:
+            module: The module to register the hooks from.
+
+        """
+        for hook_type, handlers in module.hooks.items():
+            self.info("Register hooks for event '%s'", hook_type.name)
+            self._hooks[hook_type] += handlers
+
     def _cancel_plugins_coroutines(self):
         """Private. Cancel coroutines loaded through plugins.
 
@@ -135,27 +153,17 @@ class CacophonyApplication(Application):
         """Private. Set main configuration for the bot."""
         self._command_prefix = self.conf.get('command_prefix', '!')
 
-    def create_database_session(self):
-        if self._session_maker is None:
-            return  # cannot create session
-        return self._session_maker()
+    def _init_database(self, db_path: str) -> None:
+        """Private. Initialize the database whose path is `db_path`.
 
-    def _init_cacophony_database(self):
-        if 'databases' in self.conf:
-            db_config = self.conf['databases'].get('cacophony_database')
-            self.info("%s", db_config)
-            if db_config is None:
-                return  # No database
-        else:
-            return  # No database, skip.
+        Args:
+            db_path: sqlalchemy path to the database.
 
-        # Again, I should consider using a factory pattern here. X(
-        if db_config.get('type', '') == 'SQLITE_FILE':
-            self._cacophony_db = sqlalchemy.create_engine(
-                'sqlite:///{}'.format(db_config.get('path', ':memory:')))
-            Model.metadata.create_all(self._cacophony_db)
-            self._session_maker = sqlalchemy.orm.sessionmaker()
-            self._session_maker.configure(bind=self._cacophony_db)
+        """
+        self._db = sqlalchemy.create_engine(db_path)
+        Model.metadata.create_all(self._db)
+        self._session_maker = sqlalchemy.orm.sessionmaker()
+        self._session_maker.configure(bind=self._db)
 
     def prefixize(self, command_name: str) -> str:
         """Prefixize `command_name` with the command prefix.
@@ -189,17 +197,6 @@ class CacophonyApplication(Application):
         """
         return command_name.lstrip(self._command_prefix)
 
-    def build_brain(self, brain_string):
-        return ChattyMarkov(brain_string)
-
-    def command_config(self, server_id, command):
-        """Return the configuration associated for `command` on `server_id`."""
-        return self.conf['servers'][server_id]['commands'][command]
-
-    def get_hook_config(self, server_id, hook):
-        """Return the configuration associated for `hook` on `server_id`."""
-        return self.conf['servers'][server_id]['hooks'][hook]
-
     async def on_ready(self):
         self.info("Cacophony bot ready.")
 
@@ -207,87 +204,8 @@ class CacophonyApplication(Application):
         for plugin in self._plugins.values():
             await plugin.on_ready()
 
-        self.info("Servers are:")
-        discord_servers = self.conf.get('servers', [])
-        for server in self.discord_client.servers:
-
-            self.info("- %s (ID: %s)", server, server.id)
-            if server.id not in discord_servers:
-                self.warning("No server ID '%s' in config. Skipping.",
-                             server.id)
-                continue
-
-            # Build the brain for the server
-            brain = self.build_brain(
-                discord_servers[server.id]['brain_string'])
-            if brain:
-                chattyness = discord_servers[server.id].get('chattyness',
-                                                            0.1)
-                channels = discord_servers[server.id].get('chatty_channels')
-                self.bots[server.id] = Cacophony(
-                    logger=self.logger,
-                    name=discord_servers[server.id]['nickname'],
-                    markov_brain=brain, chattyness=chattyness,
-                    channels=channels)
-            else:
-                self.warning("Could not find brain for server '%s'!",
-                             server)
-
-            # Load extra-commands if any
-            extra_commands = discord_servers[server.id].get('commands', {})
-            if len(extra_commands) > 0:
-                self._load_extra_commands(server.id, extra_commands)
-
-            # Schedule jobs if any
-            self._schedule_jobs(server, discord_servers[server.id])
-
-            # Load hooks if any
-            hooks = discord_servers[server.id].get('hooks', {})
-            self._load_hooks(server.id, hooks)
-
         await self.discord_client.change_presence(
                 game=discord.Game(name="Type !help for more information."))
-
-    def _schedule_jobs(self, server, server_config):
-        """Load some specific coroutine jobs described in config."""
-        jobs = server_config.get("jobs", list())
-        for job in jobs:
-            module = importlib.import_module(".jobs.{}".format(job),
-                                             package="cacophony")
-            coroutine = module.load()
-            self.info("Loaded job '%s'", job)
-            channels = [channel for channel in server.channels
-                        if channel.name in server_config.get(
-                            'channels', list())]
-            self.info("Channels are: %s", channels)
-            for channel in channels:
-                self.info("Schedule job %s for %s:%s", job,
-                          server.name, channel.name)
-                asyncio.ensure_future(coroutine(self, channel), loop=self.loop)
-
-    def _load_extra_commands(self, server_id, extra_commands):
-        """Load extra commands."""
-        for command, config in extra_commands.items():
-            self.info("Will load %s", command)
-            module = importlib.import_module(".commands.{}".format(command),
-                                             package="cacophony")
-            command, function = module.load()
-            self.callbacks[(command, server_id)] = function
-
-    def _load_hooks(self, server_id, hooks):
-        """Load hooks for a specific server."""
-        self.info("Will load hooks.")
-        loaded_hooks = defaultdict(list)
-        for hook in hooks:
-            self.info("Load hook '%s' for server id '%s'", hook, server_id)
-            module = importlib.import_module(".hooks.{}".format(hook),
-                                             package="cacophony")
-            hook_config = self.get_hook_config(server_id, hook)
-            hooked_channels = hook_config.get('_channels', ['*'])
-            # hookee represents the action being hooked (e.g. 'on_message')
-            hookee, hook = module.load()
-            loaded_hooks[hookee].append((hook, hooked_channels))
-        self.hooks[server_id] = loaded_hooks
 
     def _is_command_allowed(self,
                             server_id: str,
@@ -333,9 +251,8 @@ class CacophonyApplication(Application):
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
 
-        # TODO: Handle commands?
-
-        # TODO: call hooks?
+        for hook in self._hooks[Hook.ON_MESSAGE]:
+            await hook(self, message)
 
         if message_content.startswith(self._command_prefix):
             command, *args = message.content.split(' ')
