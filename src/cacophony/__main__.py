@@ -33,20 +33,16 @@ def main(action, profile):
 @handle('run')
 def run(profile: str, *args, **kwargs) -> None:
     """Run the bot with the specified `profile`."""
-    try:
-        discord_token = os.environ.get('CACOPHONY_DISCORD_TOKEN')
-        if discord_token is None:
-            click.secho("You must set the environment variable "
-                        "'CACOPHONY_DISCORD_TOKEN' before running the bot.",
-                        fg='red', err=True)
-            raise SystemExit(-1)
-        db_path = os.environ.get('CACOPHONY_DATABASE', 'sqlite://')
-        application = CacophonyApplication(discord_token,
-                                           name=profile, db_path=db_path)
-    except ProfileNotFoundError as exn:
-        click.secho(f'[!] {exn}', fg='red', err=True)
-    else:
-        application.run()
+    discord_token = os.environ.get('CACOPHONY_DISCORD_TOKEN')
+    if discord_token is None:
+        click.secho("You must set the environment variable "
+                    "'CACOPHONY_DISCORD_TOKEN' before running the bot.",
+                    fg='red', err=True)
+        raise SystemExit(-1)
+    db_path = os.environ.get('CACOPHONY_DATABASE', 'sqlite://')
+    application = CacophonyApplication(discord_token,
+                                       name=profile, db_path=db_path)
+    application.run()
 
 
 @handle('create')

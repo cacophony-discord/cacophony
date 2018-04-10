@@ -27,8 +27,6 @@ class Application:
         """Construct an application class."""
 
         self.name = name
-        self.base_dir = os.path.expanduser("~/.config/cacophony-discord")
-
         if logger is not None:
             self.logger = logger
         else:
@@ -36,7 +34,6 @@ class Application:
 
         self.conf = {}
         if load_conf:
-            self._load_conf()
             self._reconfigure_logging()
             self.debug("Loaded configuration: %s", self.conf)
 
