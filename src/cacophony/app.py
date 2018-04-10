@@ -3,7 +3,7 @@
 import asyncio
 
 from .base import Application, Cacophony, Hook, Plugin
-from .models import Model
+from .models import Model, Config
 from chattymarkov import ChattyMarkov
 
 from collections import defaultdict
@@ -15,7 +15,7 @@ import sqlalchemy
 class CacophonyApplication(Application):
     """Application class."""
 
-    def __init__(self, name='cacophony', db_path=':memory', *args, **kwargs):
+    def __init__(self, name='cacophony', db_path='sqlite://', *args, **kwargs):
         self.discord_client = None  # Discord link
         self.loop = None  # asyncio loop
         self.bots = {}  # Key is discord server, value is bot instance
@@ -23,6 +23,7 @@ class CacophonyApplication(Application):
         # Database related attributes:
         self._db = None  # Cacophony relational database
         self._db_session_maker = None  # Session maker to the database
+        self._db_session = None
 
         # Bot related attributes:
         self.hooks = {}
@@ -43,6 +44,11 @@ class CacophonyApplication(Application):
         super().__init__(name=name, *args, **kwargs)
         self._configure_bot()
         self._init_database(db_path)
+
+    @property
+    def db_session(self):
+        """Get the database session."""
+        return self._db_session
 
     @property
     def plugins(self) -> defaultdict(str):
@@ -196,6 +202,44 @@ class CacophonyApplication(Application):
 
         """
         return command_name.lstrip(self._command_prefix)
+
+    def get_config(server_id: str, setting: str) -> str:
+        """Get the `setting` value for `server_id`.
+
+        The setting will be fetched into the database.
+
+        Args:
+            server_id: The discord's server id to fetch the setting from.
+            setting: The setting to fetch the value from.
+
+        Returns:
+            The setting value.
+
+        """
+
+        config = self.db_session.query(Config).filter_by(
+            server_id=server_id,
+            name=setting).one()
+        return config.value
+
+    def set_config(server_id: str, setting: str, value: str) -> None:
+        """Set `setting`'s `value` whose server's identified by `server_id`.
+
+        Args:
+            server_id: The discord's server id to fetch the setting from.
+            setting: The setting to set a value to.
+            value: The value to set.
+
+        """
+        config = self.db_session.query(Config).filter_by(
+            server_id=server_id,
+            name=setting).one()
+        if config is None:
+            config = Config(server_id=server_id, name=setting, value=value)
+            session.add(config)
+        else:
+            config.value = value
+        session.commit()
 
     async def on_ready(self):
         self.info("Cacophony bot ready.")
