@@ -334,12 +334,11 @@ class CacophonyApplication(Application):
         self.discord_client.on_member_join = self.on_member_join
 
         # And register generic command callbacks
-        self.callbacks[('!ping', '*')] = on_ping
-        self.callbacks[('!say', '*')] = on_say
-        self.callbacks[('!help', '*')] = on_help
-        self.callbacks[('!mute', '*')] = on_mute
-        self.callbacks[('!vjoin', '*')] = on_vjoin
-        self.callbacks[('!vquit', '*')] = on_vquit
+        self._commands_handlers['ping'] += [on_ping]
+        self._commands_handlers['say'] += [on_say]
+        self._commands_handlers['help'] += [on_help]
+        self._commands_handlers['vjoin'] += [on_vjoin]
+        self._commands_handlers['vquit'] += [on_vquit]
 
     async def process_messages(self):
         """Process messages to send by checking `self.messages_queue`."""
