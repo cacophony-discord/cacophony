@@ -15,8 +15,10 @@ import sqlalchemy
 class CacophonyApplication(Application):
     """Application class."""
 
-    def __init__(self, name='cacophony', db_path='sqlite://', *args, **kwargs):
+    def __init__(self, discord_token, name='cacophony', db_path='sqlite://',
+                 *args, **kwargs):
         self.discord_client = None  # Discord link
+        self._discord_token = discord_token
         self.loop = None  # asyncio loop
         self.bots = {}  # Key is discord server, value is bot instance
 
@@ -377,16 +379,8 @@ class CacophonyApplication(Application):
                 self.process_messages_task = \
                     asyncio.ensure_future(self.process_messages(),
                                           loop=self.loop)
-
-                token = self.conf.get('token', '')
-                if token:
-                    self.debug("Will log using token '%s'", token)
-                else:
-                    self.critical("Error: no token found in configuration. "
-                                  "Exiting...")
-                    raise SystemExit(-1)
                 self.register_discord_callbacks()
-                await self.discord_client.start(token)
+                await self.discord_client.start(self._discord_token)
             except KeyboardInterrupt:
                 self.info("Caught ^C signal.")
                 self.process_messages_task.cancel()
