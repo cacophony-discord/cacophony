@@ -327,10 +327,6 @@ class CacophonyApplication(Application):
             else:
                 return  # The hook return False. Do nothing else.
 
-    def _load_opus(self):
-        if not discord.opus.is_loaded():
-            discord.opus.load_opus("libopus.so")
-
     def register_discord_callbacks(self):
         """Hack to register discord callbacks."""
         self.discord_client.on_ready = self.on_ready
@@ -369,7 +365,6 @@ class CacophonyApplication(Application):
         await self.messages_queue.put((target, message,))
 
     async def _async_run(self):
-        self._load_opus()
         await self._load_plugins()
         self.info(self.conf)
         while self.is_running:
