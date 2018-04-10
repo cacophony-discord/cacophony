@@ -1,4 +1,5 @@
 """Cacophony Discord Bot."""
+import os
 from pathlib import Path
 
 import click
@@ -33,7 +34,8 @@ def main(action, profile):
 def run(profile: str, *args, **kwargs) -> None:
     """Run the bot with the specified `profile`."""
     try:
-        application = CacophonyApplication(name=profile)
+        db_path = os.environ.get('CACOPHONY_DATABASE', 'sqlite://')
+        application = CacophonyApplication(name=profile, db_path=db_path)
     except ProfileNotFoundError as exn:
         click.secho(f'[!] {exn}', fg='red', err=True)
     else:
