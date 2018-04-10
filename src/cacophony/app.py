@@ -455,17 +455,14 @@ async def on_mute(self, message, *args):
 
 async def on_help(self, message, *args):
     """Display the list of available commands by private message."""
-    if len(args) > 0:
+    if args:
         sub_command, *_ = args
-        sub_command = "!" + sub_command
-        if (sub_command, '*') in self.callbacks:
-            callback = self.callbacks.get((sub_command, '*'))
-        elif (sub_command, message.server.id) in self.callbacks:
-            callback = self.callbacks.get(
-                (sub_command, message.server.id))
+        if sub_command in self._commands_handlers:
+            callback = self._commands_handlers[sub_command][0]
         else:
             callback = None
 
+        sub_command = self.prefixize(sub_command)
         if callback is None:
             await self.send_message(
                 message.author,
@@ -478,11 +475,9 @@ async def on_help(self, message, *args):
             f"**{sub_command}**\n\n```{callback.__doc__}```")
     else:
         output = "**Available commands:**\n\n"
-        for ((command, server), cb) in self.callbacks.items():
-            if server != '*' and message.server.id != server:
-                continue
-            summary_doc, *_ = cb.__doc__.split('\n\n')
-            output += f"**{command}**: {summary_doc}\n"
+        for command, callbacks in self._commands_handlers.items():
+            summary_doc, *_ = callbacks[0].__doc__.split('\n\n')
+            output += f"**{self.prefixize(command)}**: {summary_doc}\n"
         output += ("\nFor further help on any command,"
                    " type !help _command_ (Exemple: !help anim)")
         await self.send_message(message.author, output)
