@@ -168,8 +168,9 @@ class CacophonyApplication(Application):
         """
         self._db = sqlalchemy.create_engine(db_path)
         Model.metadata.create_all(self._db)
-        self._session_maker = sqlalchemy.orm.sessionmaker()
-        self._session_maker.configure(bind=self._db)
+        self._db_session_maker = sqlalchemy.orm.sessionmaker()
+        self._db_session_maker.configure(bind=self._db)
+        self._db_session = self._db_session_maker()
 
     def prefixize(self, command_name: str) -> str:
         """Prefixize `command_name` with the command prefix.
@@ -203,10 +204,11 @@ class CacophonyApplication(Application):
         """
         return command_name.lstrip(self._command_prefix)
 
-    def get_config(server_id: str, setting: str) -> str:
+    def get_config(self, server_id: str, setting: str, default=None) -> str:
         """Get the `setting` value for `server_id`.
 
-        The setting will be fetched into the database.
+        The setting will be fetched into the database. If it cannot be found,
+        then the method will return `default` instead.
 
         Args:
             server_id: The discord's server id to fetch the setting from.
@@ -216,13 +218,16 @@ class CacophonyApplication(Application):
             The setting value.
 
         """
+        try:
+            config = self.db_session.query(Config).filter_by(
+                server_id=server_id,
+                name=setting).one()
+        except sqlalchemy.orm.exc.NoResultFound as exn:
+            return default
+        else:
+            return config.value
 
-        config = self.db_session.query(Config).filter_by(
-            server_id=server_id,
-            name=setting).one()
-        return config.value
-
-    def set_config(server_id: str, setting: str, value: str) -> None:
+    def set_config(self, server_id: str, setting: str, value: str) -> None:
         """Set `setting`'s `value` whose server's identified by `server_id`.
 
         Args:
