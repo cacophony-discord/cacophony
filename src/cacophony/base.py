@@ -15,10 +15,6 @@ class CacophonyError(Exception):
     """Base exception class for cacophony related errors."""
 
 
-class ProfileNotFoundError(CacophonyError):
-    """Exception thrown when the profile's configuration is not found."""
-
-
 class Application:
     """Base application class."""
 
@@ -49,31 +45,6 @@ class Application:
         a default logger."""
         log.load_default_config(self.name)
         self.logger = log.get_logger(self.name)
-
-    def _load_conf(self):
-        """Private. Load the configuration from the profile's YAML file.
-
-        Raises:
-            ProfileNotFoundError: The configuration file according to the
-                application's name has not been found.
-
-        """
-        base_dir = os.path.join(self.base_dir, self.name)
-
-        if not os.path.exists(base_dir):
-            raise ProfileNotFoundError(
-                f"The profile '{self.name}' could not be found. Create it "
-                f"by launching 'cacophony create --profile {self.name}'")
-
-        self.info("Will load config from %s...", base_dir)
-        try:
-            self.conf = helpers.load_yaml_file(
-                os.path.join(base_dir, "config.yml"))
-        except FileNotFoundError:
-            raise ProfileNotFoundError(
-                "Could not file 'config.yml' file into profile "
-                f"'{self.name}'. You can re-create the config file "
-                f"by launching 'cacophony create --profile {self.name}'")
 
     def run(self):
         """Run the application."""
