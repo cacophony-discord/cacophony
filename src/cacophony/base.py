@@ -1,8 +1,7 @@
 """Cacophony base classes."""
 from enum import Enum
-import os
 
-from . import helpers, log
+from . import log
 
 
 class Hook(Enum):

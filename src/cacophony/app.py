@@ -4,7 +4,6 @@ import asyncio
 
 from .base import Application, Hook, Plugin
 from .models import Model, Config
-from chattymarkov import ChattyMarkov
 
 from collections import defaultdict
 import discord
@@ -248,10 +247,10 @@ class CacophonyApplication(Application):
             name=setting).one()
         if config is None:
             config = Config(server_id=server_id, name=setting, value=value)
-            session.add(config)
+            self._db_session.add(config)
         else:
             config.value = value
-        session.commit()
+        self._db_session.commit()
 
     async def on_ready(self):
         self.info("Cacophony bot ready.")
@@ -484,5 +483,10 @@ async def on_help(self, message, *args):
             summary_doc, *_ = callbacks[0].__doc__.split('\n\n')
             output += f"**{self.prefixize(command)}**: {summary_doc}\n"
         output += ("\nFor further help on any command,"
-                   " type !help _command_ (Exemple: !help anim)")
+                   " type !help _command_ (Exemple: !help anim)\n\n")
+
+        client_id = self.discord_client.user.id
+        output += ("Feel free to invite me on your server(s): "
+                   "https://discordapp.com/oauth2/authorize?"
+                   f"client_id={client_id}&scope=bot&permissions=0")
         await self.send_message(message.author, output)

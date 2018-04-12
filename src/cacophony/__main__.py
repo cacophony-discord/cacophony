@@ -1,6 +1,5 @@
 """Cacophony Discord Bot."""
 import os
-from pathlib import Path
 
 import click
 
