@@ -322,14 +322,6 @@ class CacophonyApplication(Application):
     async def on_member_join(self, member):
         self.info("%s joined the server '%s'!",
                   member.nick, member.server.name)
-        server_id = member.server.id
-
-        # Call hooks if any
-        for hook, channels in self.hooks[server_id]['on_member_join']:
-            if await hook(self, member):
-                continue  # The hook returned True. Continue
-            else:
-                return  # The hook return False. Do nothing else.
 
     def register_discord_callbacks(self):
         """Hack to register discord callbacks."""
@@ -403,13 +395,7 @@ async def on_ping(self, message, *args):
 
 async def on_say(self, message, *args):
     """Simply say what's needed to be said."""
-    try:
-        bot = self.bots[message.server.id]
-    except KeyError:
-        self.logger.info("Unknown bot for server %s", message.server.id)
-    else:
-        if not bot.is_mute:
-            await self.send_message(message.channel, ' '.join(args))
+    await self.send_message(message.channel, ' '.join(args))
 
 
 async def on_vjoin(self, message, *args):
