@@ -20,9 +20,8 @@ def handle(action):
 
 @click.command()
 @click.argument('action')
-@click.option('--profile')
 @click.option('--plugins')
-def main(action, profile, plugins):
+def main(action, plugins):
     """Instanciate an application, then run it."""
 
     if plugins:
@@ -31,12 +30,12 @@ def main(action, profile, plugins):
         plugin_list = []
     handler = _HANDLERS.get(action)
     if handler is not None:
-        handler(profile, plugins=plugin_list)
+        handler(plugins=plugin_list)
 
 
 @handle('run')
-def run(profile: str, plugins: list, *args, **kwargs) -> None:
-    """Run the bot with the specified `profile`."""
+def run(plugins: list, *args, **kwargs) -> None:
+    """Run the bot."""
     discord_token = os.environ.get('CACOPHONY_DISCORD_TOKEN')
     if discord_token is None:
         click.secho("You must set the environment variable "
@@ -44,8 +43,7 @@ def run(profile: str, plugins: list, *args, **kwargs) -> None:
                     fg='red', err=True)
         raise SystemExit(-1)
     db_path = os.environ.get('CACOPHONY_DATABASE', 'sqlite://')
-    application = CacophonyApplication(discord_token,
-                                       name=profile, db_path=db_path,
+    application = CacophonyApplication(discord_token, db_path=db_path,
                                        plugins=plugins)
     application.run()
 
