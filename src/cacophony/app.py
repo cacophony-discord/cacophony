@@ -16,7 +16,13 @@ class CacophonyApplication(Application):
     """Application class."""
 
     def __init__(self, discord_token, name='cacophony', db_path='sqlite://',
-                 *args, **kwargs):
+                 plugins=None, *args, **kwargs):
+
+        if plugins is None:
+            self._plugin_names = []
+        else:
+            self._plugin_names = plugins
+
         self.discord_client = None  # Discord link
         self._discord_token = discord_token
         self.loop = None  # asyncio loop
@@ -69,8 +75,7 @@ class CacophonyApplication(Application):
         The plugins must be located in cacophony.plugins submodule.
 
         """
-        plugins = self.conf.get('plugins', [])
-        for plugin in plugins:
+        for plugin in self._plugin_names:
             self.info("Load plugin '%s'.", plugin)
             try:
                 module = importlib.import_module(f".plugins.{plugin}",

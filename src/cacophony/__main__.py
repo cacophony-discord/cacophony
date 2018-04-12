@@ -21,16 +21,21 @@ def handle(action):
 @click.command()
 @click.argument('action')
 @click.option('--profile')
-def main(action, profile):
+@click.option('--plugins')
+def main(action, profile, plugins):
     """Instanciate an application, then run it."""
 
+    if plugins:
+        plugin_list = plugins.split(',')
+    else:
+        plugin_list = []
     handler = _HANDLERS.get(action)
     if handler is not None:
-        handler(profile)
+        handler(profile, plugins=plugin_list)
 
 
 @handle('run')
-def run(profile: str, *args, **kwargs) -> None:
+def run(profile: str, plugins: list, *args, **kwargs) -> None:
     """Run the bot with the specified `profile`."""
     discord_token = os.environ.get('CACOPHONY_DISCORD_TOKEN')
     if discord_token is None:
@@ -40,7 +45,8 @@ def run(profile: str, *args, **kwargs) -> None:
         raise SystemExit(-1)
     db_path = os.environ.get('CACOPHONY_DATABASE', 'sqlite://')
     application = CacophonyApplication(discord_token,
-                                       name=profile, db_path=db_path)
+                                       name=profile, db_path=db_path,
+                                       plugins=plugins)
     application.run()
 
 
