@@ -2,7 +2,7 @@
 
 import asyncio
 
-from .base import Application, Cacophony, Hook, Plugin
+from .base import Application, Hook, Plugin
 from .models import Model, Config
 from chattymarkov import ChattyMarkov
 
