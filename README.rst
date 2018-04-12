@@ -29,16 +29,21 @@ https://discordapp.com/developers/applications/me/create
 Also, click on "Create a Bot User" to generate a user for the bot, then get
 the token associated to the bot. It will be useful for the bot's configuration.
 
-Create a new profile:
+Finally, you need to export an environment variable to pass the token to the
+bot:
 
 .. code-block:: bash
 
-    cacophony create --profile mybot
+    export CACOPHONY_DISCORD_TOKEN=<YOUR_APP_TOKEN_HERE>
 
-Then go to `~/.config/cacophony-discord/mybot/config.yml` and replace the
-`MY_TOKEN_HERE` string by your token.
+Last but not least, run the bot through:
 
-Congratulations, you're all set!
+.. code-block:: bash
+
+    cacophony run
+
+Congratulations! You're all set. Still, the bot itself hasn't that much
+interest. You may install plugins then.
 
 
 Contribute
@@ -57,4 +62,3 @@ Roadmap
 - Define a first plug-in architecture.
 - Rewrite documentation.
 - Lots of refactoring...
-- Move chatty feature in an external plug-in.
