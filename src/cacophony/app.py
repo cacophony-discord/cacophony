@@ -323,11 +323,17 @@ class CacophonyApplication(Application):
         self.info("%s joined the server '%s'!",
                   member.nick, member.server.name)
 
+    async def on_server_join(self, server):
+        """Call hooks registered upon new server joining."""
+        for hook in self._hooks[Hook.ON_SERVER_JOIN]:
+            await hook(self, server)
+
     def register_discord_callbacks(self):
         """Hack to register discord callbacks."""
         self.discord_client.on_ready = self.on_ready
         self.discord_client.on_message = self.on_message
         self.discord_client.on_member_join = self.on_member_join
+        self.discord_client.on_server_join = self.on_server_join
 
         # And register generic command callbacks
         self._commands_handlers['ping'] += [on_ping]

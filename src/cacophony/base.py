@@ -8,6 +8,7 @@ class Hook(Enum):
     """Describe different hook kinds for cacophony."""
     ON_MESSAGE = 1
     ON_ANSWER = 2
+    ON_SERVER_JOIN = 3
 
 
 class CacophonyError(Exception):
