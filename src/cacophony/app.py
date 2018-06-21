@@ -4,6 +4,7 @@ import asyncio
 
 from .base import Application, Hook, Plugin
 from .models import Model, Config
+from .web import load_web_app
 
 from collections import defaultdict
 import discord
@@ -347,8 +348,16 @@ class CacophonyApplication(Application):
         self.info("process_messages() coroutine started!")
         while True:
             channel, message = await self.messages_queue.get()
-            await self.discord_client.send_message(channel, message)
-            self.messages_queue.task_done()
+            try:
+                await self.discord_client.send_message(channel, message)
+            except discord.DiscordException as exn:
+                self.warning("Error while attempting to send message %s to %s:"
+                             " Caught exception %s.", channel, message, exn)
+            else:
+                self.debug("Sent message '%s' for channel '%s'", channel,
+                           message)
+            finally:
+                self.messages_queue.task_done()
 
     async def send_message(self,
                            target,
@@ -363,6 +372,7 @@ class CacophonyApplication(Application):
                 discord channel or a discord user.
             message: The message to send.
         """
+        self.debug("Enqueue message %s for %s", message, target)
         await self.messages_queue.put((target, message,))
 
     async def _async_run(self):
@@ -389,7 +399,15 @@ class CacophonyApplication(Application):
 
     def run(self):
         self.loop = asyncio.get_event_loop()
+        webapp = load_web_app()
+        webapp_handler = webapp.make_handler()
+        web_coro = self.loop.create_server(webapp_handler, '0.0.0.0', 8080)
+        srv = self.loop.run_until_complete(web_coro)
         self.loop.run_until_complete(self._async_run())
+        self.loop.run_until_complete(webapp_handler.finish_connections(1.0))
+        srv.close()
+        self.loop.run_until_complete(srv.wait_closed())
+        self.loop.run_until_complete(webapp.finish())
         self.loop.close()
         raise SystemExit(0)
 
