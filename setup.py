@@ -2,10 +2,7 @@
 
 import ast
 import re
-import sys
-from os.path import abspath, dirname, join
 from pathlib import Path
-from subprocess import PIPE, Popen
 
 from setuptools import find_packages, setup
 
@@ -16,6 +13,7 @@ INSTALL_REQUIRES = [
     'sqlalchemy',
     'pyaml'
 ]
+
 
 def get_meta():
     """Get meta information from package init python file."""
