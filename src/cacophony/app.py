@@ -338,7 +338,6 @@ class CacophonyApplication(Application):
 
         # And register generic command callbacks
         self._commands_handlers['ping'] += [on_ping]
-        self._commands_handlers['say'] += [on_say]
         self._commands_handlers['help'] += [on_help]
         self._commands_handlers['vjoin'] += [on_vjoin]
         self._commands_handlers['vquit'] += [on_vquit]
@@ -415,11 +414,6 @@ class CacophonyApplication(Application):
 async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
     await self.send_message(message.channel, '_Pong!_')
-
-
-async def on_say(self, message, *args):
-    """Simply say what's needed to be said."""
-    await self.send_message(message.channel, ' '.join(args))
 
 
 async def on_vjoin(self, message, *args):
