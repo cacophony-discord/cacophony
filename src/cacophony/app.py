@@ -487,10 +487,12 @@ async def on_help(self, message, *args):
             summary_doc, *_ = callbacks[0].__doc__.split('\n\n')
             output += f"**{self.prefixize(command)}**: {summary_doc}\n"
         output += ("\nFor further help on any command,"
-                   " type !help _command_ (Exemple: !help anim)\n\n")
+                   " type !help _command_ (Exemple: !help ping)\n\n")
 
         client_id = self.discord_client.user.id
         output += ("Feel free to invite me on your server(s): "
                    "https://discordapp.com/oauth2/authorize?"
-                   f"client_id={client_id}&scope=bot&permissions=0")
+                   f"client_id={client_id}&scope=bot&permissions=0\n"
+                   "Follow my development on "
+                   "https://github.com/cacophony-discord/cacophony")
         await self.send_message(message.author, output)
