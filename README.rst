@@ -49,9 +49,8 @@ interest. You may install plugins then.
 Contribute
 ----------
 
-You can join cacophony's discord server at https://discord.gg/G9xM8ux
-
-Also, for any question as regard the bot, feel free to reach me on Ge0#1974.
+For any question as regard the bot, feel free to reach me on Ge0#1974
+(Discord).
 
 
 Roadmap
