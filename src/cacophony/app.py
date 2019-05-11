@@ -370,6 +370,7 @@ class CacophonyApplication(Application):
         self.info("process_messages() coroutine started!")
         while True:
             channel, message = await self.messages_queue.get()
+            self.info("Will send %s %s", channel, message)
             try:
                 await self.discord_client.send_message(channel, message)
             except discord.DiscordException as exn:
