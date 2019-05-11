@@ -61,7 +61,7 @@ class CacophonyApplication(Application):
     @property
     def plugins(self) -> defaultdict(str):
         """Get the loaded plugins."""
-        return self._plugins
+        return self._loaded_plugins
 
     @property
     def guilds(self):
