@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 
 
 INSTALL_REQUIRES = [
-    'discord.py',
+    'discord.py==1.1.0',
     'click',
     'sqlalchemy',
     'pyaml'

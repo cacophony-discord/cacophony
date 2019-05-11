@@ -229,7 +229,7 @@ class CacophonyApplication(Application):
             config = self.db_session.query(Config).filter_by(
                 server_id=server_id,
                 name=setting).one()
-        except sqlalchemy.orm.exc.NoResultFound as exn:
+        except sqlalchemy.orm.exc.NoResultFound:
             return default
         else:
             return config.value
@@ -261,7 +261,7 @@ class CacophonyApplication(Application):
             await plugin.on_ready()
 
         await self.discord_client.change_presence(
-                game=discord.Game(name="Type !help for more information."))
+            status=discord.Game(name="Type !help for more information."))
 
     def _is_command_allowed(self,
                             server_id: str,
