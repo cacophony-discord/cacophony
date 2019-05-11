@@ -372,7 +372,7 @@ class CacophonyApplication(Application):
             channel, message = await self.messages_queue.get()
             self.info("Will send %s %s", channel, message)
             try:
-                await self.discord_client.send_message(channel, message)
+                await channel.send(message)
             except discord.DiscordException as exn:
                 self.warning("Error while attempting to send message %s to %s:"
                              " Caught exception %s.", channel, message, exn)
