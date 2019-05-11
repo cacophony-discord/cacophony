@@ -19,9 +19,9 @@ class CacophonyApplication(Application):
                  plugins=None, *args, **kwargs):
 
         if plugins is None:
-            self._plugin_names = []
+            self._plugins = []
         else:
-            self._plugin_names = plugins
+            self._plugins = plugins
 
         self.discord_client = None  # Discord link
         self._discord_token = discord_token
@@ -69,37 +69,56 @@ class CacophonyApplication(Application):
         not connected yet, then this property should not be used."""
         return self.discord_client.servers
 
+    def _load_internal_plugin(self, plugin: str):
+        """Private. Load an internal plugin.
+
+        The plugin should be located in the cacophony.plugins submodule.
+
+        Args:
+            plugin: the name of the plugin to load.
+
+        Returns:
+            the module object, None otherwise.
+
+        """
+        try:
+            module = importlib.import_module(f".plugins.{plugin}",
+                                             package="cacophony")
+        except ModuleNotFoundError as exn:
+            self.error("Could not load plugin '%s': '%s'",
+                       plugin, exn)
+            return None
+        else:
+            return module
+
     async def _load_plugins(self):
         """Private. Load plugins referenced in the configuration.
 
         The plugins must be located in cacophony.plugins submodule.
 
         """
-        for plugin in self._plugin_names:
-            self.info("Load plugin '%s'.", plugin)
-            try:
-                module = importlib.import_module(f".plugins.{plugin}",
-                                                 package="cacophony")
-            except ModuleNotFoundError as exn:
-                self.error("Could not load plugin '%s': '%s'",
-                           plugin, exn)
+        for plugin in self._plugins:
+            if isinstance(plugin, str):
+                module = self._load_internal_plugin(plugin)
             else:
+                module = plugin
+                plugin = str(module)
 
-                # Instantiate the plugin
-                if hasattr(module, 'plugin_class'):
-                    self._plugins[plugin] = module.plugin_class(self)
-                else:
-                    self._plugins[plugin] = Plugin(self)
+            # Instantiate the plugin
+            if hasattr(module, 'plugin_class'):
+                self._plugins[plugin] = module.plugin_class(self)
+            else:
+                self._plugins[plugin] = Plugin(self)
 
-                # Call the plugin 'on_load' hook
-                await self._plugins[plugin].on_load()
+            # Call the plugin 'on_load' hook
+            await self._plugins[plugin].on_load()
 
-                if hasattr(module, 'coroutines'):
-                    self._schedule_module_coroutines(module)
-                if hasattr(module, 'commands'):
-                    self._add_command_handlers(module)
-                if hasattr(module, 'hooks'):
-                    self._register_hooks(module)
+            if hasattr(module, 'coroutines'):
+                self._schedule_module_coroutines(module)
+            if hasattr(module, 'commands'):
+                self._add_command_handlers(module)
+            if hasattr(module, 'hooks'):
+                self._register_hooks(module)
 
     def _schedule_module_coroutines(self, module):
         """Private. Schedule coroutines listed in `module`.
@@ -289,8 +308,6 @@ class CacophonyApplication(Application):
         self.info("%s %s %s: %s", message.server, message.channel,
                   message.author, message.content)
 
-        message_content = message.content
-
         # Discard every messages sent by the bot itself.
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
@@ -308,17 +325,20 @@ class CacophonyApplication(Application):
             return  # Do not handle self messages
 
         for hook in self._hooks[Hook.ON_MESSAGE]:
-            await hook(self, message)
-
-        if message_content.startswith(self._command_prefix):
-            command, *args = message.content.split(' ')
-            command = self.unprefixize(command)
-            if self._is_command_allowed(server_id,
-                                        message.channel.name,
-                                        command):
-                # Call every registered command handlers
-                for handler in self._commands_handlers[command]:
-                    await handler(self, message, *args)
+            message = await hook(self, message)
+            if message is None:
+                break
+        else:
+            message_content = message.content
+            if message_content.startswith(self._command_prefix):
+                command, *args = message.content.split(' ')
+                command = self.unprefixize(command)
+                if self._is_command_allowed(server_id,
+                                            message.channel.name,
+                                            command):
+                    # Call every registered command handlers
+                    for handler in self._commands_handlers[command]:
+                        await handler(self, message, *args)
 
     async def on_member_join(self, member):
         self.info("%s joined the server '%s'!",
