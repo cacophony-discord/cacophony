@@ -43,7 +43,7 @@ class CacophonyApplication(Application):
         self.process_messages_task = None
 
         # Loaded plugins:
-        self._plugins = defaultdict(str)
+        self._loaded_plugins = defaultdict(str)
         self._plugins_coroutines = []
         self._commands_handlers = defaultdict(list)
         self._hooks = defaultdict(list)
@@ -64,10 +64,10 @@ class CacophonyApplication(Application):
         return self._plugins
 
     @property
-    def servers(self):
-        """Get the discord servers the bot is connected to. If the bot is
+    def guilds(self):
+        """Get the discord guilds the bot is connected to. If the bot is
         not connected yet, then this property should not be used."""
-        return self.discord_client.servers
+        return self.discord_client.guilds
 
     def _load_internal_plugin(self, plugin: str):
         """Private. Load an internal plugin.
@@ -97,6 +97,7 @@ class CacophonyApplication(Application):
         The plugins must be located in cacophony.plugins submodule.
 
         """
+        self.info("Load plugins")
         for plugin in self._plugins:
             if isinstance(plugin, str):
                 module = self._load_internal_plugin(plugin)
@@ -104,14 +105,16 @@ class CacophonyApplication(Application):
                 module = plugin
                 plugin = str(module)
 
+            self.info("Found plugin '%s'", plugin)
+
             # Instantiate the plugin
             if hasattr(module, 'plugin_class'):
-                self._plugins[plugin] = module.plugin_class(self)
+                self._loaded_plugins[plugin] = module.plugin_class(self)
             else:
-                self._plugins[plugin] = Plugin(self)
+                self._loaded_plugins[plugin] = Plugin(self)
 
             # Call the plugin 'on_load' hook
-            await self._plugins[plugin].on_load()
+            await self._loaded_plugins[plugin].on_load()
 
             if hasattr(module, 'coroutines'):
                 self._schedule_module_coroutines(module)
@@ -276,7 +279,7 @@ class CacophonyApplication(Application):
         self.info("Cacophony bot ready.")
 
         # Notify plugins that the server is ready.
-        for plugin in self._plugins.values():
+        for plugin in self._loaded_plugins.values():
             await plugin.on_ready()
 
         await self.discord_client.change_presence(
@@ -305,7 +308,7 @@ class CacophonyApplication(Application):
         return command in self._commands_handlers
 
     async def on_message(self, message):
-        self.info("%s %s %s: %s", message.server, message.channel,
+        self.info("%s %s %s: %s", message.guild, message.channel,
                   message.author, message.content)
 
         # Discard every messages sent by the bot itself.
@@ -315,7 +318,7 @@ class CacophonyApplication(Application):
 
         # XXX: How to handle private messages properly? Type attribute maybe.
         try:
-            server_id = message.server.id
+            server_id = message.guild.id
         except AttributeError:
             server_id = ''
 
