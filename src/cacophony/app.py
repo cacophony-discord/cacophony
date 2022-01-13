@@ -15,8 +15,15 @@ import sqlalchemy
 class CacophonyApplication(Application):
     """Application class."""
 
-    def __init__(self, discord_token, name='cacophony', db_path='sqlite://',
-                 plugins=None, *args, **kwargs):
+    def __init__(
+        self,
+        discord_token,
+        name="cacophony",
+        db_path="sqlite://",
+        plugins=None,
+        *args,
+        **kwargs,
+    ):
 
         if plugins is None:
             self._plugins = []
@@ -82,11 +89,11 @@ class CacophonyApplication(Application):
 
         """
         try:
-            module = importlib.import_module(f".plugins.{plugin}",
-                                             package="cacophony")
+            module = importlib.import_module(
+                f".plugins.{plugin}", package="cacophony"
+            )
         except ModuleNotFoundError as exn:
-            self.error("Could not load plugin '%s': '%s'",
-                       plugin, exn)
+            self.error("Could not load plugin '%s': '%s'", plugin, exn)
             return None
         else:
             return module
@@ -108,7 +115,7 @@ class CacophonyApplication(Application):
             self.info("Found plugin '%s'", plugin)
 
             # Instantiate the plugin
-            if hasattr(module, 'plugin_class'):
+            if hasattr(module, "plugin_class"):
                 self._loaded_plugins[plugin] = module.plugin_class(self)
             else:
                 self._loaded_plugins[plugin] = Plugin(self)
@@ -116,11 +123,11 @@ class CacophonyApplication(Application):
             # Call the plugin 'on_load' hook
             await self._loaded_plugins[plugin].on_load()
 
-            if hasattr(module, 'coroutines'):
+            if hasattr(module, "coroutines"):
                 self._schedule_module_coroutines(module)
-            if hasattr(module, 'commands'):
+            if hasattr(module, "commands"):
                 self._add_command_handlers(module)
-            if hasattr(module, 'hooks'):
+            if hasattr(module, "hooks"):
                 self._register_hooks(module)
 
     def _schedule_module_coroutines(self, module):
@@ -186,7 +193,7 @@ class CacophonyApplication(Application):
 
     def _configure_bot(self):
         """Private. Set main configuration for the bot."""
-        self._command_prefix = self.conf.get('command_prefix', '!')
+        self._command_prefix = self.conf.get("command_prefix", "!")
 
     def _init_database(self, db_path: str) -> None:
         """Private. Initialize the database whose path is `db_path`.
@@ -215,7 +222,7 @@ class CacophonyApplication(Application):
             The prefixized command name.
 
         """
-        return f'{self._command_prefix}{command_name}'
+        return f"{self._command_prefix}{command_name}"
 
     def unprefixize(self, command_name):
         """Unprefixize `command_name` by removing its prefix.
@@ -248,9 +255,11 @@ class CacophonyApplication(Application):
 
         """
         try:
-            config = self.db_session.query(Config).filter_by(
-                server_id=server_id,
-                name=setting).one()
+            config = (
+                self.db_session.query(Config)
+                .filter_by(server_id=server_id, name=setting)
+                .one()
+            )
         except sqlalchemy.orm.exc.NoResultFound:
             return default
         else:
@@ -265,9 +274,11 @@ class CacophonyApplication(Application):
             value: The value to set.
 
         """
-        config = self.db_session.query(Config).filter_by(
-            server_id=server_id,
-            name=setting).one()
+        config = (
+            self.db_session.query(Config)
+            .filter_by(server_id=server_id, name=setting)
+            .one()
+        )
         if config is None:
             config = Config(server_id=server_id, name=setting, value=value)
             self._db_session.add(config)
@@ -283,12 +294,12 @@ class CacophonyApplication(Application):
             await plugin.on_ready()
 
         await self.discord_client.change_presence(
-            status=discord.Game(name="Type !help for more information."))
+            status=discord.Game(name="Type !help for more information.")
+        )
 
-    def _is_command_allowed(self,
-                            server_id: str,
-                            channel: str,
-                            command: str) -> bool:
+    def _is_command_allowed(
+        self, server_id: str, channel: str, command: str
+    ) -> bool:
         """Private. Check whether `command` can be executed or not.
 
         This function is called once `command` has been summoned on discord
@@ -308,8 +319,13 @@ class CacophonyApplication(Application):
         return command in self._commands_handlers
 
     async def on_message(self, message):
-        self.info("%s %s %s: %s", message.guild, message.channel,
-                  message.author, message.content)
+        self.info(
+            "%s %s %s: %s",
+            message.guild,
+            message.channel,
+            message.author,
+            message.content,
+        )
 
         # Discard every messages sent by the bot itself.
         if message.author.id == self.discord_client.user.id:
@@ -320,12 +336,20 @@ class CacophonyApplication(Application):
         try:
             server_id = message.guild.id
         except AttributeError:
-            server_id = ''
+            server_id = ""
 
         # Discard every messages sent by the bot itself.
         if message.author.id == self.discord_client.user.id:
             self.info("Do not handle self messages.")
             return  # Do not handle self messages
+
+        if message.channel.name == "bot":
+            self.info("Ignore bot channel")
+            return  # Ignore bot channel
+
+        if message.author.bot:
+            self.info("Do not handle bot messages.")
+            return  # Do not handle bot messages
 
         for hook in self._hooks[Hook.ON_MESSAGE]:
             message = await hook(self, message)
@@ -334,18 +358,19 @@ class CacophonyApplication(Application):
         else:
             message_content = message.content
             if message_content.startswith(self._command_prefix):
-                command, *args = message.content.split(' ')
+                command, *args = message.content.split(" ")
                 command = self.unprefixize(command)
-                if self._is_command_allowed(server_id,
-                                            message.channel.name,
-                                            command):
+                if self._is_command_allowed(
+                    server_id, message.channel.name, command
+                ):
                     # Call every registered command handlers
                     for handler in self._commands_handlers[command]:
                         await handler(self, message, *args)
 
     async def on_member_join(self, member):
-        self.info("%s joined the server '%s'!",
-                  member.nick, member.server.name)
+        self.info(
+            "%s joined the server '%s'!", member.nick, member.server.name
+        )
 
     async def on_server_join(self, server):
         """Call hooks registered upon new server joining."""
@@ -360,10 +385,10 @@ class CacophonyApplication(Application):
         self.discord_client.on_server_join = self.on_server_join
 
         # And register generic command callbacks
-        self._commands_handlers['ping'] += [on_ping]
-        self._commands_handlers['help'] += [on_help]
-        self._commands_handlers['vjoin'] += [on_vjoin]
-        self._commands_handlers['vquit'] += [on_vquit]
+        self._commands_handlers["ping"] += [on_ping]
+        self._commands_handlers["help"] += [on_help]
+        self._commands_handlers["vjoin"] += [on_vjoin]
+        self._commands_handlers["vquit"] += [on_vquit]
 
     async def process_messages(self):
         """Process messages to send by checking `self.messages_queue`."""
@@ -374,17 +399,21 @@ class CacophonyApplication(Application):
             try:
                 await channel.send(message)
             except discord.DiscordException as exn:
-                self.warning("Error while attempting to send message %s to %s:"
-                             " Caught exception %s.", channel, message, exn)
+                self.warning(
+                    "Error while attempting to send message %s to %s:"
+                    " Caught exception %s.",
+                    channel,
+                    message,
+                    exn,
+                )
             else:
-                self.debug("Sent message '%s' for channel '%s'", channel,
-                           message)
+                self.debug(
+                    "Sent message '%s' for channel '%s'", channel, message
+                )
             finally:
                 self.messages_queue.task_done()
 
-    async def send_message(self,
-                           target,
-                           message: str) -> None:
+    async def send_message(self, target, message: str) -> None:
         """Send `message` to `channel`.
 
         This method will just enqueue a tuple (`channel`, `message`) in the
@@ -396,7 +425,12 @@ class CacophonyApplication(Application):
             message: The message to send.
         """
         self.debug("Enqueue message %s for %s", message, target)
-        await self.messages_queue.put((target, message,))
+        await self.messages_queue.put(
+            (
+                target,
+                message,
+            )
+        )
 
     async def _async_run(self):
         await self._load_plugins()
@@ -405,9 +439,9 @@ class CacophonyApplication(Application):
             try:
                 self.discord_client = discord.Client()
                 self.messages_queue = asyncio.Queue(loop=self.loop)
-                self.process_messages_task = \
-                    asyncio.ensure_future(self.process_messages(),
-                                          loop=self.loop)
+                self.process_messages_task = asyncio.ensure_future(
+                    self.process_messages(), loop=self.loop
+                )
                 self.register_discord_callbacks()
                 await self.discord_client.start(self._discord_token)
             except KeyboardInterrupt:
@@ -424,7 +458,7 @@ class CacophonyApplication(Application):
         self.loop = asyncio.get_event_loop()
         webapp = load_web_app()
         webapp_handler = webapp.make_handler()
-        web_coro = self.loop.create_server(webapp_handler, '0.0.0.0', 8080)
+        web_coro = self.loop.create_server(webapp_handler, "0.0.0.0", 8080)
         srv = self.loop.run_until_complete(web_coro)
         self.loop.run_until_complete(self._async_run())
         self.loop.run_until_complete(webapp_handler.finish_connections(1.0))
@@ -437,7 +471,7 @@ class CacophonyApplication(Application):
 
 async def on_ping(self, message, *args):
     """Ping the bot that will answer with a 'Pong!' message."""
-    await self.send_message(message.channel, '_Pong!_')
+    await self.send_message(message.channel, "_Pong!_")
 
 
 async def on_vjoin(self, message, *args):
@@ -451,12 +485,12 @@ async def on_vjoin(self, message, *args):
     if voice_channel is not None:
         # Join the channel the user is in
         await self.discord_client.join_voice_channel(voice_channel)
-        await self.send_message(message.channel,
-                                f"_Joined {voice_channel}._")
+        await self.send_message(message.channel, f"_Joined {voice_channel}._")
     else:
         await self.send_message(
             message.channel,
-            "_You must be in a voice channel so I can catch up with you._")
+            "_You must be in a voice channel so I can catch up with you._",
+        )
 
 
 async def on_vquit(self, message, *args):
@@ -468,7 +502,8 @@ async def on_vquit(self, message, *args):
         await voice_client.disconnect()
         await self.send_message(
             message.channel,
-            f"_Successfully disconnected from {voice_channel}_")
+            f"_Successfully disconnected from {voice_channel}_",
+        )
 
 
 async def on_mute(self, message, *args):
@@ -477,12 +512,10 @@ async def on_mute(self, message, *args):
     bot = self.bots[message.server.id]
     if bot.is_mute:
         bot.unmute()
-        await self.send_message(message.channel,
-                                "_The bot is now unmute!_")
+        await self.send_message(message.channel, "_The bot is now unmute!_")
     else:
         bot.mute()
-        await self.send_message(message.channel,
-                                "_The bot is now mute!_")
+        await self.send_message(message.channel, "_The bot is now mute!_")
 
 
 async def on_help(self, message, *args):
@@ -498,25 +531,32 @@ async def on_help(self, message, *args):
         if callback is None:
             await self.send_message(
                 message.author,
-                (f"_Unknown command {sub_command}_. Type !help "
-                 "for more information."))
+                (
+                    f"_Unknown command {sub_command}_. Type !help "
+                    "for more information."
+                ),
+            )
             return
 
         await self.send_message(
-            message.author,
-            f"**{sub_command}**\n\n```{callback.__doc__}```")
+            message.author, f"**{sub_command}**\n\n```{callback.__doc__}```"
+        )
     else:
         output = "**Available commands:**\n\n"
         for command, callbacks in self._commands_handlers.items():
-            summary_doc, *_ = callbacks[0].__doc__.split('\n\n')
+            summary_doc, *_ = callbacks[0].__doc__.split("\n\n")
             output += f"**{self.prefixize(command)}**: {summary_doc}\n"
-        output += ("\nFor further help on any command,"
-                   " type !help _command_ (Exemple: !help ping)\n\n")
+        output += (
+            "\nFor further help on any command,"
+            " type !help _command_ (Exemple: !help ping)\n\n"
+        )
 
         client_id = self.discord_client.user.id
-        output += ("Feel free to invite me on your server(s): "
-                   "https://discordapp.com/oauth2/authorize?"
-                   f"client_id={client_id}&scope=bot&permissions=0\n"
-                   "Follow my development on "
-                   "https://github.com/cacophony-discord/cacophony")
+        output += (
+            "Feel free to invite me on your server(s): "
+            "https://discordapp.com/oauth2/authorize?"
+            f"client_id={client_id}&scope=bot&permissions=0\n"
+            "Follow my development on "
+            "https://github.com/cacophony-discord/cacophony"
+        )
         await self.send_message(message.author, output)
